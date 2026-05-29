@@ -1,0 +1,14 @@
+{
+  "name": "secure-finance-client-portal",
+  "version": "1.0.0",
+  "description": "MERN Stack Secure Finance Client Portal project root configuration",
+  "private": true,
+  "scripts": {
+    "install:client": "npm install --prefix client",
+    "install:server": "npm install --prefix server",
+    "install-all": "npm run install:client && npm run install:server",
+    "client": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "dev": "npm run dev --prefix server & npm run dev --prefix client"
+  }
+}

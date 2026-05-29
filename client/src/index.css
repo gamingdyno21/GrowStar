@@ -1,0 +1,336 @@
+/* Modern Premium Design Tokens */
+:root {
+  --primary-deep: #1E3A8A; /* GrowStar Primary Navy */
+  --primary-dark: #0c1a30; /* GrowStar Darker Navy for backgrounds */
+  --accent-blue: #2563EB; /* GrowStar Secondary Royal Blue */
+  --accent-cyan: #D4AF37; /* GrowStar Accent Gold */
+  --accent-gradient: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
+  --accent-light-blue: #eff6ff;
+  --border-color: #e2e8f0;
+  --text-primary: #0F172A;
+  --text-muted: #64748B;
+  --bg-light: #f8fafc;
+  --glass-bg: #ffffff;
+  --glass-border: #e2e8f0;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
+  
+  /* Crisp rectangular fintech card corners (Groww & Zerodha style) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background-color: var(--bg-light);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animations - Subtle Micro-interactions only */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-10px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Global Styles & Layout */
+.animate-fade {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.animate-slide {
+  animation: slideInLeft 0.2s ease-out forwards;
+}
+
+/* Form Styling - Premium Inputs */
+.form-control, .form-select {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background-color: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  background-color: #ffffff;
+}
+
+.form-label {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 0.375rem;
+}
+
+/* Custom Buttons */
+.btn-primary {
+  background: var(--accent-gradient);
+  border: none;
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.1);
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.15);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-outline-primary {
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+  font-weight: 500;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--accent-light-blue);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+/* Premium Card Layouts - Flat design focus */
+.finance-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.finance-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(37, 99, 235, 0.15);
+}
+
+/* Metric Cards - Groww & RazorpayX Style */
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background-color: #ffffff;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metric-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-blue);
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent-cyan); /* Accent Gold highlight bar */
+  opacity: 1; /* Always visible for solid branding */
+}
+
+/* Sidebar and Navbar Theme - RazorpayX styled sidebar */
+.admin-sidebar {
+  background-color: var(--primary-dark);
+  color: #f8fafc;
+  min-height: 100vh;
+  box-shadow: 2px 0 8px rgba(15, 23, 42, 0.05);
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  color: #94a3b8;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+
+.sidebar-link i {
+  font-size: 1.1rem;
+  margin-right: 0.75rem;
+}
+
+.sidebar-link:hover, .sidebar-link.active {
+  color: #ffffff;
+  background-color: var(--primary-deep);
+}
+
+.sidebar-link.active {
+  border-left: 3px solid var(--accent-cyan);
+  background-color: rgba(37, 99, 235, 0.15);
+}
+
+/* Top Navbar style for client dashboard */
+.client-navbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.85rem 1.5rem;
+}
+
+.client-brand {
+  font-weight: 700;
+  color: var(--primary-deep);
+  letter-spacing: -0.5px;
+}
+
+/* Modern Tables */
+.finance-table {
+  background-color: #ffffff;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.finance-table th {
+  background-color: var(--bg-light);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.finance-table td {
+  padding: 1rem 1.25rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+}
+
+.finance-table tr:last-child td {
+  border-bottom: none;
+}
+
+.finance-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.finance-table tbody tr:hover {
+  background-color: var(--bg-light);
+}
+
+/* Badges for status */
+.badge-status {
+  padding: 0.35em 0.65em;
+  font-size: 0.75em;
+  font-weight: 600;
+  border-radius: 50rem;
+}
+
+.badge-status.approved, .badge-status.completed {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-status.pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-status.rejected, .badge-status.failed {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* OTP Input Boxes */
+.otp-container {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.otp-box {
+  width: 3rem;
+  height: 3rem;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Administrative Dark Login Layout Styles */
+.admin-login-body {
+  background-color: #0b0f19 !important;
+  color: #ffffff !important;
+}
+
+.admin-card-dark {
+  background: rgba(18, 24, 38, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+  color: #f8fafc !important;
+}
+
+.admin-card-dark .form-control {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.admin-card-dark .form-control:focus {
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.2) !important;
+}
+
+.admin-card-dark .form-label {
+  color: #94a3b8 !important;
+}
+
+.admin-card-dark h5, .admin-card-dark .text-primary {
+  color: #06b6d4 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
