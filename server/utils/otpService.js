@@ -4,7 +4,7 @@ const verifiedSessions = new Map();
 
 const generateOTP = (identifier) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
   otpStore.set(identifier, { otp, expiresAt });
   return otp;
 };

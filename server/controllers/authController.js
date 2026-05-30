@@ -36,9 +36,7 @@ const requestOTP = async (req, res) => {
       try {
         await sendEmail({
           to: targetEmail,
-          subject: 'GrowStar - OTP Verification',
-          text: `Your OTP code for verification is: ${otp}. It will expire in 5 minutes.`,
-          html: `<h3>GrowStar Verification Code</h3><p>Your OTP is <strong>${otp}</strong>. It will expire in 5 minutes.</p>`,
+          otp,
         });
         message = `OTP sent to email ${targetEmail}`;
       } catch (emailError) {
