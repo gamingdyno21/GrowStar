@@ -16,13 +16,24 @@ const { notFound, errorHandler } = require("./middleware/errorMiddleware");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(",") : true,
+  origin: [
+    "https://www.grow-star.site",
+    "https://grow-star.site",
+    "https://grow-star-orcin.vercel.app"
+  ],
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 };
+
 app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
 const limiter = rateLimit({
