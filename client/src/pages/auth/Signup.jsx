@@ -444,7 +444,7 @@ const Signup = () => {
                 {/* ── Phone Validation Panel ── */}
                 <div className="col-md-6">
                   <div className="rounded-3 p-3 h-100 d-flex flex-column justify-content-between"
-                    style={{ background: 'rgba(25, 135, 84, 0.12)', border: '1px solid rgba(25, 135, 84, 0.25)', transition: 'all 0.3s' }}>
+                    style={{ background: 'rgba(46, 204, 113, 0.15)', border: '1.5px solid rgba(46, 204, 113, 0.45)', transition: 'all 0.3s' }}>
                     <div>
                       <div className="d-flex align-items-center justify-content-between mb-2">
                         <span className="fw-semibold small text-success d-flex align-items-center gap-1">
@@ -460,7 +460,7 @@ const Signup = () => {
                       </p>
                       
                       <div className="alert alert-success py-2 px-2 d-flex align-items-center gap-2 mb-0 mt-3"
-                           style={{ fontSize: '0.75rem', borderRadius: '6px', backgroundColor: 'rgba(25, 135, 84, 0.15)', color: '#a3cfbb', borderColor: 'rgba(25, 135, 84, 0.2)' }}>
+                           style={{ fontSize: '0.75rem', borderRadius: '6px', backgroundColor: 'rgba(46, 204, 113, 0.18)', color: '#2ecc71', borderColor: 'rgba(46, 204, 113, 0.35)' }}>
                         <i className="bi bi-check-circle-fill" />
                         <span>Validated</span>
                       </div>
@@ -472,8 +472,8 @@ const Signup = () => {
                 <div className="col-md-6">
                   <div className="rounded-3 p-3 h-100"
                     style={{ 
-                      background: emailVerified ? 'rgba(25, 135, 84, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                      border: emailVerified ? '1px solid rgba(25, 135, 84, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: emailVerified ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      border: emailVerified ? '1.5px solid rgba(46, 204, 113, 0.45)' : '1.5px solid rgba(255, 255, 255, 0.15)',
                       transition: 'all 0.3s' 
                     }}>
                     <div className="d-flex align-items-center justify-content-between mb-2">
@@ -530,9 +530,9 @@ const Signup = () => {
               {/* ── Verification Status Bar ── */}
               <div className="rounded-3 p-3 mb-4 small d-flex align-items-center gap-4"
                 style={{
-                  background: emailVerified ? 'rgba(25, 135, 84, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                  border: emailVerified ? '1px solid rgba(25, 135, 84, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
-                  color: emailVerified ? '#a3cfbb' : '#94a3b8'
+                  background: emailVerified ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  border: emailVerified ? '1.5px solid rgba(46, 204, 113, 0.45)' : '1.5px solid rgba(255, 255, 255, 0.15)',
+                  color: emailVerified ? '#2ecc71' : 'rgba(255, 255, 255, 0.85)'
                 }}>
                 <span>
                   <i className="bi bi-check-circle-fill text-success me-1" />
@@ -615,10 +615,10 @@ const Signup = () => {
           {/* ════════════ STEP 4: Success ════════════ */}
           {currentStep === 4 && (
             <div className="text-center py-4 animate-fade">
-              <div className="d-inline-flex p-4 rounded-circle mb-4" style={{ background: 'rgba(25, 135, 84, 0.15)', border: '1px solid rgba(25, 135, 84, 0.3)', color: '#a3cfbb' }}>
+              <div className="d-inline-flex p-4 rounded-circle mb-4" style={{ background: 'rgba(46, 204, 113, 0.15)', border: '1.5px solid rgba(46, 204, 113, 0.45)', color: '#2ecc71' }}>
                 <i className="bi bi-shield-check" style={{ fontSize: '3rem' }} />
               </div>
-              <h3 className="fw-bold text-success" style={{ background: 'none', WebkitTextFillColor: 'initial', color: '#198754 !important' }}>Account Created!</h3>
+              <h3 className="fw-bold text-success" style={{ background: 'none', WebkitTextFillColor: 'initial', color: '#2ecc71' }}>Account Created!</h3>
               <p className="text-muted mt-2 px-md-5">
                 Your GrowStar account has been created and fully verified.
                 Redirecting to the login page...
