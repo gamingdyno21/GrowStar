@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/layout/Navbar';
+import Footer from '../../components/layout/Footer';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import { useToast } from '../../context/ToastContext';
 import messageService from '../../services/messageService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/helpers';
 
 const Messages = () => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   
   // State
   const [messages, setMessages] = useState([]);
@@ -34,6 +37,7 @@ const Messages = () => {
     } catch (err) {
       console.error('Failed to load message history:', err);
       setErrorMsg('Could not fetch message history. Please check connection.');
+      showToast('Could not fetch message history.', 'error');
     } finally {
       setLoading(false);
     }
@@ -51,6 +55,7 @@ const Messages = () => {
       const res = await messageService.sendMessage(type, message);
       if (res.success) {
         setSuccessMsg('Message dispatched to the advisory desk.');
+        showToast('Message dispatched to the advisory desk.', 'success');
         setMessage('');
         setType('Support Query');
         // Refresh message list
@@ -58,10 +63,14 @@ const Messages = () => {
         if (updated.success) {
           setMessages(updated.data);
         }
+      } else {
+        setErrorMsg('Failed to send message.');
+        showToast('Failed to send message.', 'error');
       }
     } catch (err) {
       console.error('Failed to send message:', err);
-      setErrorMsg('Failed to deliver message. Please retry.');
+      setErrorMsg('Error sending message.');
+      showToast('Error sending message.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -79,10 +88,10 @@ const Messages = () => {
   };
 
   return (
-    <div className="bg-light min-vh-100 pb-5">
+    <div className="bg-light min-vh-100 d-flex flex-column">
       <Navbar />
 
-      <div className="container py-4 text-start">
+      <div className="container py-4 text-start flex-grow-1">
         <PageHeader
           title="Consultation Desk"
           subtitle="Submit query tickets or audit confirmations to your wealth advisor"
@@ -214,6 +223,7 @@ const Messages = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

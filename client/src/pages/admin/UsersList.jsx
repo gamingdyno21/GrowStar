@@ -4,11 +4,13 @@ import Sidebar from '../../components/layout/Sidebar';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import { useToast } from '../../context/ToastContext';
 import adminService from '../../services/adminService';
 import { formatDate } from '../../utils/helpers';
 import { ACCOUNT_STATUSES } from '../../utils/constants';
 
 const UsersList = () => {
+  const { showToast } = useToast();
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,7 @@ const UsersList = () => {
       }
     } catch (err) {
       console.error('Failed to fetch user list:', err);
+      showToast('Failed to load client list.', 'error');
     } finally {
       setLoading(false);
     }
@@ -66,10 +69,11 @@ const UsersList = () => {
     try {
       const res = await adminService.updateUserStatus(id, newStatus);
       if (res.success) {
+        showToast(`Client verification status set to ${newStatus}.`, 'success');
         fetchUsers();
       }
     } catch (err) {
-      alert('Verification status change failed.');
+      showToast('Verification status change failed.', 'error');
     }
   };
 
@@ -83,11 +87,14 @@ const UsersList = () => {
     try {
       const res = await adminService.deleteUser(id);
       if (res.success) {
-        alert('Client and all records deleted successfully.');
+        showToast('Client and all associated records permanently deleted.', 'success');
         fetchUsers();
+      } else {
+        showToast('Failed to delete client record.', 'error');
+        setLoading(false);
       }
     } catch (err) {
-      alert('Failed to delete client record.');
+      showToast('Failed to delete client record.', 'error');
       setLoading(false);
     }
   };

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     email: location.state?.email || '',
@@ -48,7 +50,10 @@ const ResetPassword = () => {
     setApiError('');
     setApiSuccess('');
 
-    if (!validate()) return;
+    if (!validate()) {
+      showToast('Validation failed. Please correct form fields.', 'error');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -61,14 +66,19 @@ const ResetPassword = () => {
 
       if (res.success) {
         setApiSuccess('Password reset successfully. Redirecting to login...');
+        showToast('Password reset successfully! You can now log in.', 'success');
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       } else {
-        setApiError(res.message || 'Password reset failed.');
+        const errMsg = res.message || 'Password reset failed.';
+        setApiError(errMsg);
+        showToast(errMsg, 'error');
       }
     } catch (err) {
-      setApiError(err.response?.data?.message || 'Error occurred while resetting password.');
+      const errMsg = err.response?.data?.message || 'Error occurred while resetting password.';
+      setApiError(errMsg);
+      showToast(errMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -167,8 +177,13 @@ const ResetPassword = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3" disabled={loading}>
-              {loading ? 'Updating Credentials...' : 'Save New Password'}
+            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3 d-flex align-items-center justify-content-center" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Updating Credentials...
+                </>
+              ) : 'Save New Password'}
             </button>
           </form>
 

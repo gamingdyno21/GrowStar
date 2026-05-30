@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Sidebar from '../../components/layout/Sidebar';
 import PageHeader from '../../components/common/PageHeader';
+import Footer from '../../components/layout/Footer';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
 import adminService from '../../services/adminService';
@@ -934,10 +935,10 @@ const UserDetails = () => {
                     </div>
                   </div>
                 )}
-
               </div>
             </div>
           )}
+          <Footer adminMode={true} />
         </div>
       </div>
     </div>

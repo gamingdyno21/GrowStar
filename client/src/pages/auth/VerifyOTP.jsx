@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 
 const VerifyOTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
 
   // Get email from route state if redirecting from somewhere, otherwise empty
   const [email, setEmail] = useState(location.state?.email || '');
@@ -35,14 +37,19 @@ const VerifyOTP = () => {
       const res = await authService.verifyOTP(email, otp);
       if (res.success) {
         setApiSuccess('Verification successful! Redirecting...');
+        showToast('OTP verified successfully! Redirecting...', 'success');
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       } else {
-        setApiError('Invalid or expired OTP code.');
+        const msg = 'Invalid or expired OTP code.';
+        setApiError(msg);
+        showToast(msg, 'error');
       }
     } catch (err) {
-      setApiError(err.response?.data?.message || 'Verification failed.');
+      const msg = err.response?.data?.message || 'Verification failed.';
+      setApiError(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -51,15 +58,19 @@ const VerifyOTP = () => {
   const handleResend = async () => {
     if (!email) {
       setErrors({ email: 'Enter your email address first' });
+      showToast('Enter your email address first', 'warning');
       return;
     }
     setApiError('');
     setApiSuccess('');
     try {
       await authService.requestOTP(email);
-      setApiSuccess('A new OTP has been sent. Check your logs!');
+      setApiSuccess('A new OTP has been sent. Check your inbox!');
+      showToast('A new OTP has been sent. Check your inbox!', 'success');
     } catch (err) {
-      setApiError('Failed to send OTP.');
+      const msg = 'Failed to send OTP.';
+      setApiError(msg);
+      showToast(msg, 'error');
     }
   };
 
@@ -130,8 +141,13 @@ const VerifyOTP = () => {
               {errors.otp && <div className="invalid-feedback">{errors.otp}</div>}
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3" disabled={submitting}>
-              {submitting ? 'Verifying...' : 'Verify OTP'}
+            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3 d-flex align-items-center justify-content-center" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Verifying...
+                </>
+              ) : 'Verify OTP'}
             </button>
           </form>
 

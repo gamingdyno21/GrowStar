@@ -73,16 +73,6 @@ const Sidebar = () => {
               Analytics
             </NavLink>
           </li>
-          <li>
-            <NavLink
-              to="/admin/settings"
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <i className="bi bi-gear-fill"></i>
-              Settings
-            </NavLink>
-          </li>
         </ul>
         <hr className="bg-secondary" />
         <div className="dropdown pb-3 ps-2">

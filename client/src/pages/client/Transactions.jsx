@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/layout/Navbar';
+import Footer from '../../components/layout/Footer';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
@@ -115,10 +116,10 @@ const Transactions = () => {
   };
 
   return (
-    <div className="bg-light min-vh-100 pb-5">
+    <div className="bg-light min-vh-100 d-flex flex-column">
       <Navbar />
 
-      <div className="container py-4">
+      <div className="container py-4 flex-grow-1">
         {notification.message && (
           <div className={`alert alert-${notification.type} alert-dismissible fade show mb-4`} role="alert">
             {notification.message}
@@ -281,6 +282,7 @@ const Transactions = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

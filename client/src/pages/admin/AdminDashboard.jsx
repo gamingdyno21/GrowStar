@@ -2,13 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/layout/Sidebar';
 import PageHeader from '../../components/common/PageHeader';
+import Footer from '../../components/layout/Footer';
 import StatCard from '../../components/dashboard/StatCard';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import { useToast } from '../../context/ToastContext';
 import adminService from '../../services/adminService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
 const AdminDashboard = () => {
+  const { showToast } = useToast();
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeInvestors: 0,
@@ -40,6 +43,7 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       console.error('Failed to retrieve administrative statistics:', err);
+      showToast('Failed to load administrative overview metrics.', 'error');
     } finally {
       setLoading(false);
     }
@@ -50,10 +54,11 @@ const AdminDashboard = () => {
     try {
       const res = await adminService.updateUserStatus(id, 'Approved');
       if (res.success) {
+        showToast('Client account approved successfully.', 'success');
         fetchDashboardData();
       }
     } catch (err) {
-      alert('Verification status change failed.');
+      showToast('Verification status change failed.', 'error');
     }
   };
 
@@ -62,10 +67,11 @@ const AdminDashboard = () => {
     try {
       const res = await adminService.updateUserStatus(id, 'Rejected');
       if (res.success) {
+        showToast('Client account KYC status set to Rejected.', 'success');
         fetchDashboardData();
       }
     } catch (err) {
-      alert('Verification status change failed.');
+      showToast('Verification status change failed.', 'error');
     }
   };
 
@@ -194,6 +200,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           )}
+          <Footer adminMode={true} />
         </div>
       </div>
     </div>

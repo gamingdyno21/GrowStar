@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/layout/Navbar';
+import Footer from '../../components/layout/Footer';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import { useToast } from '../../context/ToastContext';
 import userService from '../../services/userService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
 
 const ClientDashboard = () => {
   const { user, refreshUser } = useAuth();
+  const { showToast } = useToast();
   
   // Dashboard & Profile Data
   const [profile, setProfile] = useState(null);
@@ -39,6 +42,7 @@ const ClientDashboard = () => {
       }
     } catch (err) {
       console.error('Failed to load client portal data:', err);
+      showToast('Failed to load portal portfolio details.', 'error');
     } finally {
       setLoading(false);
     }
@@ -117,10 +121,10 @@ const ClientDashboard = () => {
   const portfolio = getPortfolioValue();
 
   return (
-    <div className="bg-light min-vh-100 pb-5">
+    <div className="bg-light min-vh-100 d-flex flex-column">
       <Navbar />
 
-      <div className="container py-4">
+      <div className="container py-4 flex-grow-1">
         {/* Verification Status Banner */}
         {profile?.status === 'Pending' && (
           <div className="alert alert-warning border-warning-subtle d-flex align-items-center mb-4 p-3 rounded-3 shadow-sm" role="alert">
@@ -348,6 +352,7 @@ const ClientDashboard = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

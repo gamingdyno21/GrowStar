@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 
@@ -36,6 +37,8 @@ const Login = () => {
     return Object.keys(tempErrors).length === 0;
   };
 
+  const { showToast } = useToast();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError('');
@@ -46,9 +49,12 @@ const Login = () => {
     setSubmitting(false);
 
     if (res.success) {
+      showToast('Login successful! Welcoming you back.', 'success');
       navigate('/dashboard');
     } else {
-      setApiError(res.message || 'Invalid credentials');
+      const errMsg = res.message || 'Invalid credentials';
+      setApiError(errMsg);
+      showToast(errMsg, 'error');
     }
   };
 
@@ -129,8 +135,13 @@ const Login = () => {
               {errors.password && <div className="invalid-feedback">{errors.password}</div>}
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3" disabled={submitting}>
-              {submitting ? 'Authenticating...' : 'Sign In'}
+            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3 d-flex align-items-center justify-content-center" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Authenticating...
+                </>
+              ) : 'Sign In'}
             </button>
           </form>
           <hr className="my-4" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,6 +18,7 @@ const ForgotPassword = () => {
 
     if (!email) {
       setError('Email is required');
+      showToast('Email is required', 'warning');
       return;
     }
 
@@ -23,13 +26,18 @@ const ForgotPassword = () => {
     try {
       const res = await authService.requestOTP(email);
       if (res.success) {
+        showToast('Verification OTP sent successfully! Check your inbox.', 'success');
         // Redirect to Reset Password with email state
         navigate('/reset-password', { state: { email } });
       } else {
-        setError(res.message || 'Failed to send OTP. Please check email address.');
+        const errMsg = res.message || 'Failed to send OTP. Please check email address.';
+        setError(errMsg);
+        showToast(errMsg, 'error');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Error requesting password reset.');
+      const errMsg = err.response?.data?.message || 'Error requesting password reset.';
+      setError(errMsg);
+      showToast(errMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -87,8 +95,13 @@ const ForgotPassword = () => {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-2" disabled={loading}>
-              {loading ? 'Generating OTP...' : 'Send Verification OTP'}
+            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-2 d-flex align-items-center justify-content-center" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Generating OTP...
+                </>
+              ) : 'Send Verification OTP'}
             </button>
           </form>
 

@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/layout/Navbar';
+import Footer from '../../components/layout/Footer';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import { useToast } from '../../context/ToastContext';
 import userService from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
 import { formatPhone } from '../../utils/helpers';
 
 const Profile = () => {
-  const { user, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
+  const { showToast } = useToast();
   const [profile, setProfile] = useState({
     fullName: '',
     email: '',
@@ -50,6 +53,7 @@ const Profile = () => {
       }
     } catch (err) {
       console.error('Failed to load profile details:', err);
+      showToast('Failed to load profile details.', 'error');
     } finally {
       setLoading(false);
     }
@@ -67,7 +71,7 @@ const Profile = () => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
-        alert("Selected image is too large. Max limit is 2MB.");
+        showToast('Selected image is too large. Max limit is 2MB.', 'error');
         return;
       }
       const reader = new FileReader();
@@ -127,10 +131,10 @@ const Profile = () => {
   };
 
   return (
-    <div className="bg-light min-vh-100 pb-5">
+    <div className="bg-light min-vh-100 d-flex flex-column">
       <Navbar />
 
-      <div className="container py-4">
+      <div className="container py-4 flex-grow-1">
         <PageHeader title="Profile & Settlement Settings" subtitle="Adjust bank credentials, personal details and view KYC status" />
 
         {loading ? (
@@ -296,6 +300,7 @@ const Profile = () => {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
+import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 import { formatPAN, formatAadhaar, formatPhone } from '../../utils/helpers';
@@ -34,6 +35,7 @@ const VerifBadge = ({ verified }) =>
 // ─────────────────────────────────────────────────────────────────────────────
 const Signup = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // ── Stepper ──────────────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(1);
@@ -135,6 +137,7 @@ const Signup = () => {
     setApiError('');
     if (!validateDetails()) {
       setApiError('Please correct all errors above before sending verification code.');
+      showToast('Validation failed. Please correct form fields.', 'error');
       return;
     }
     setGeneratingOtp(true);
@@ -148,12 +151,16 @@ const Signup = () => {
       if (resEmail?.success) {
         emailSent = true;
         setEmailOtpStatus({ type: 'info', message: `OTP sent to ${formData.email}. Check your inbox.` });
+        showToast(`Verification OTP sent to ${formData.email}`, 'success');
         startCooldown();
       } else {
         setEmailOtpStatus({ type: 'error', message: 'Failed to send email OTP. Please retry.' });
+        showToast('Failed to send email OTP. Please retry.', 'error');
       }
     } catch (err) {
-      setEmailOtpStatus({ type: 'error', message: err.response?.data?.message || 'Email OTP dispatch failed.' });
+      const errMsg = err.response?.data?.message || 'Email OTP dispatch failed.';
+      setEmailOtpStatus({ type: 'error', message: errMsg });
+      showToast(errMsg, 'error');
     }
 
     setGeneratingOtp(false);
@@ -176,12 +183,16 @@ const Signup = () => {
         setEmailVerified(false);
         setFormData(prev => ({ ...prev, emailOtp: '' }));
         setEmailOtpStatus({ type: 'info', message: `New OTP sent to ${formData.email}.` });
+        showToast('Verification OTP resent successfully.', 'success');
         startCooldown();
       } else {
         setEmailOtpStatus({ type: 'error', message: 'Failed to resend OTP. Please try again.' });
+        showToast('Failed to resend OTP. Please try again.', 'error');
       }
     } catch (err) {
-      setEmailOtpStatus({ type: 'error', message: err.response?.data?.message || 'Failed to resend email OTP.' });
+      const errMsg = err.response?.data?.message || 'Failed to resend email OTP.';
+      setEmailOtpStatus({ type: 'error', message: errMsg });
+      showToast(errMsg, 'error');
     } finally {
       setResendingEmail(false);
     }
@@ -191,6 +202,7 @@ const Signup = () => {
   const handleVerifyEmailOtp = async () => {
     if (!formData.emailOtp.trim()) {
       setEmailOtpStatus({ type: 'error', message: 'Please enter the OTP from your email.' });
+      showToast('Please enter the OTP.', 'warning');
       return;
     }
     setVerifyingEmail(true);
@@ -204,22 +216,26 @@ const Signup = () => {
         setEmailVerified(true);
         localStorage.setItem('emailVerified', 'true');
         setEmailOtpStatus({ type: 'success', message: 'Email address verified successfully.' });
+        showToast('Email address verified successfully!', 'success');
       } else {
         setEmailVerified(false); // Clear on failure
         localStorage.setItem('emailVerified', 'false');
         setEmailOtpStatus({ type: 'error', message: 'Invalid OTP. Please check and try again.' });
+        showToast('Invalid OTP. Please check and try again.', 'error');
       }
     } catch (err) {
       console.error("[DEBUG] Email verification failed:", err);
       setEmailVerified(false); // Clear on exception
       localStorage.setItem('emailVerified', 'false');
       const msg = err.response?.data?.message || '';
+      const detailedMsg = msg.toLowerCase().includes('expired')
+        ? 'OTP has expired. Click "Resend OTP" to get a new one.'
+        : 'Invalid OTP. Please check and try again.';
       setEmailOtpStatus({
         type: 'error',
-        message: msg.toLowerCase().includes('expired')
-          ? 'OTP has expired. Click "Resend OTP" to get a new one.'
-          : 'Invalid OTP. Please check and try again.',
+        message: detailedMsg,
       });
+      showToast(detailedMsg, 'error');
     } finally {
       setVerifyingEmail(false);
     }
@@ -279,13 +295,18 @@ const Signup = () => {
       if (res?.success) {
         localStorage.removeItem('emailVerified');
         localStorage.removeItem('mobileValidated');
+        showToast('Account created successfully! Welcome to GrowStar.', 'success');
         setCurrentStep(4);
         setTimeout(() => navigate('/login'), 3000);
       } else {
-        setApiError(res?.message || 'Registration failed. Please try again.');
+        const msg = res?.message || 'Registration failed. Please try again.';
+        setApiError(msg);
+        showToast(msg, 'error');
       }
     } catch (err) {
-      setApiError(err.response?.data?.message || 'Error occurred during registration.');
+      const errMsg = err.response?.data?.message || 'Error occurred during registration.';
+      setApiError(errMsg);
+      showToast(errMsg, 'error');
     } finally {
       setSubmitting(false);
     }

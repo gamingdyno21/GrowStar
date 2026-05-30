@@ -21,7 +21,6 @@ import UsersList from '../pages/admin/UsersList';
 import UserDetails from '../pages/admin/UserDetails';
 import MessagesPanel from '../pages/admin/MessagesPanel';
 import AdminAnalytics from '../pages/admin/AdminAnalytics';
-import AdminSettings from '../pages/admin/AdminSettings';
 
 // Route guards
 import ProtectedRoute from './ProtectedRoute';
@@ -120,14 +119,6 @@ const AppRoutes = () => {
         element={
           <AdminRoute>
             <AdminAnalytics />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/admin/settings"
-        element={
-          <AdminRoute>
-            <AdminSettings />
           </AdminRoute>
         }
       />

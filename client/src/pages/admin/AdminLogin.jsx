@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 
 const AdminLogin = () => {
   const { adminLogin } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -46,9 +48,12 @@ const AdminLogin = () => {
     setSubmitting(false);
 
     if (res.success) {
+      showToast('Admin login successful. Access granted.', 'success');
       navigate('/admin/dashboard');
     } else {
-      setApiError(res.message || 'Invalid administrator credentials');
+      const errMsg = res.message || 'Invalid administrator credentials';
+      setApiError(errMsg);
+      showToast(errMsg, 'error');
     }
   };
 
@@ -121,8 +126,13 @@ const AdminLogin = () => {
               {errors.password && <div className="invalid-feedback">{errors.password}</div>}
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3" disabled={submitting}>
-              {submitting ? 'Entering Workspace...' : 'Login'}
+            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3 d-flex align-items-center justify-content-center" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Entering Workspace...
+                </>
+              ) : 'Login'}
             </button>
           </form>
 

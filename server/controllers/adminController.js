@@ -2,6 +2,7 @@ const Admin = require('../models/Admin');
 const User = require('../models/User');
 const FinancialRecord = require('../models/FinancialRecord');
 const ActivityLog = require('../models/ActivityLog');
+const Message = require('../models/Message');
 const jwt = require('jsonwebtoken');
 
 const generateToken = (id) => {

@@ -3,6 +3,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import Footer from '../../components/layout/Footer';
 import adminService from '../../services/adminService';
 import { formatCurrency } from '../../utils/helpers';
 
@@ -120,6 +121,7 @@ const AdminAnalytics = () => {
               </div>
             </div>
           )}
+          <Footer adminMode={true} />
         </div>
       </div>
     </div>

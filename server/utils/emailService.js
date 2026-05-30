@@ -53,6 +53,7 @@ const sendEmail = async ({ to, otp }) => {
         <!-- Footer -->
         <div style="font-size: 11px; color: #64748b; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 20px; margin-top: 20px;">
           <p style="margin: 0; font-weight: 500;">Secure Client Portal • Protected Financial Access</p>
+          <p style="margin: 4px 0 0 0;">For assistance, please contact support at <a href="mailto:support@grow-star.site" style="color: #D4AF37; text-decoration: none;">support@grow-star.site</a></p>
           <p style="margin: 4px 0 0 0;">GrowStar © 2026. All rights reserved.</p>
         </div>
 
