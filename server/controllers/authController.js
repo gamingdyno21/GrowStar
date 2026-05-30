@@ -43,14 +43,14 @@ const requestOTP = async (req, res) => {
         message = `OTP sent to email ${targetEmail}`;
       } catch (emailError) {
         console.error(`[OTP EMAIL ERROR] Failed to send OTP email to ${targetEmail}:`, emailError.message);
-        console.log(`[OTP BYPASS LOG] Generated OTP for ${targetEmail} is: ${otp}`);
         
         if (process.env.NODE_ENV !== 'production') {
+          console.log(`[OTP BYPASS LOG] Generated OTP for ${targetEmail} is: ${otp}`);
           message = `OTP generated (Dev Mode Fallback: ${otp})`;
         } else {
           return res.status(500).json({
             success: false,
-            message: `Failed to dispatch verification email. (Error: ${emailError.message})`
+            message: 'Failed to dispatch verification email. Please verify configuration or retry.'
           });
         }
       }
