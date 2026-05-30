@@ -36,18 +36,39 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="container min-vh-100 d-flex align-items-center justify-content-center py-5">
-      <div className="w-100 animate-fade" style={{ maxWidth: '400px' }}>
+    <div className="auth-layout">
+      {/* Background Visuals */}
+      <div className="auth-glow-1"></div>
+      <div className="auth-glow-2"></div>
+      <div className="auth-bg-grid"></div>
+      
+      {/* Floating graph lines */}
+      <div className="auth-bg-graph">
+        <svg viewBox="0 0 1000 100" preserveAspectRatio="none">
+          <path 
+            className="auth-graph-line" 
+            d="M0,80 Q100,40 200,60 T400,20 T600,70 T800,30 T1000,50" 
+          />
+        </svg>
+      </div>
+
+      {/* Floating gold particles */}
+      <div className="auth-particle" style={{ left: '10%', top: '20%', animationDelay: '0s', animationDuration: '12s' }}></div>
+      <div className="auth-particle" style={{ left: '30%', top: '45%', animationDelay: '2s', animationDuration: '18s' }}></div>
+      <div className="auth-particle" style={{ left: '60%', top: '15%', animationDelay: '1s', animationDuration: '14s' }}></div>
+      <div className="auth-particle" style={{ left: '85%', top: '35%', animationDelay: '4s', animationDuration: '16s' }}></div>
+
+      <div className="w-100 auth-page-transition d-flex flex-column align-items-center" style={{ maxWidth: '440px', zIndex: 10 }}>
         <div className="text-center mb-4">
-          <BrandLogo width={48} height={48} className="mb-2" />
-          <h2 className="fw-bold mt-2 text-primary" style={{ letterSpacing: '-0.5px' }}>Password Recovery</h2>
-          <p className="text-secondary small fw-medium">Verify ownership of your account</p>
+          <BrandLogo width={64} height={64} className="mb-2" />
+          <h2 className="fw-bold mt-2 text-white" style={{ letterSpacing: '-0.5px' }}>Password Recovery</h2>
+          <p className="text-muted small fw-medium">Verify ownership of your account</p>
         </div>
 
-        <Card title="Forgot Password">
-          {error && <div className="alert alert-danger small py-2">{error}</div>}
+        <Card className="auth-card" title="Forgot Password">
+          {error && <div className="alert alert-danger small py-2 bg-danger-subtle border-danger text-danger-emphasis">{error}</div>}
 
-          <p className="text-secondary small mb-4">
+          <p className="text-muted small mb-4">
             Enter the email address registered to your account. We will dispatch a 6-digit OTP code to verify your identity.
           </p>
 
@@ -71,11 +92,19 @@ const ForgotPassword = () => {
             </button>
           </form>
 
-          <hr className="my-4 text-secondary" />
+          <hr className="my-4" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
           <div className="text-center">
-            <Link to="/login" className="text-primary small fw-semibold text-decoration-none">
+            <Link to="/login" className="text-muted small fw-semibold text-decoration-none">
               Back to Sign In
             </Link>
+          </div>
+
+          {/* Trust Badge Indicator */}
+          <div className="text-center mt-4">
+            <div className="auth-trust-badge">
+              <i className="bi bi-shield-fill-check"></i>
+              <span>Secure Recovery | 256-bit SSL</span>
+            </div>
           </div>
         </Card>
       </div>

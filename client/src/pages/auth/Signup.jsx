@@ -296,24 +296,40 @@ const Signup = () => {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="container min-vh-100 d-flex align-items-center justify-content-center py-5">
-      <div className="w-100 animate-fade" style={{ maxWidth: '660px' }}>
+    <div className="auth-layout">
+      {/* Background Visuals */}
+      <div className="auth-glow-1"></div>
+      <div className="auth-glow-2"></div>
+      <div className="auth-bg-grid"></div>
+      
+      {/* Floating graph lines */}
+      <div className="auth-bg-graph">
+        <svg viewBox="0 0 1000 100" preserveAspectRatio="none">
+          <path 
+            className="auth-graph-line" 
+            d="M0,80 Q100,40 200,60 T400,20 T600,70 T800,30 T1000,50" 
+          />
+        </svg>
+      </div>
+
+      {/* Floating gold particles */}
+      <div className="auth-particle" style={{ left: '10%', top: '20%', animationDelay: '0s', animationDuration: '12s' }}></div>
+      <div className="auth-particle" style={{ left: '30%', top: '45%', animationDelay: '2s', animationDuration: '18s' }}></div>
+      <div className="auth-particle" style={{ left: '60%', top: '15%', animationDelay: '1s', animationDuration: '14s' }}></div>
+      <div className="auth-particle" style={{ left: '85%', top: '35%', animationDelay: '4s', animationDuration: '16s' }}></div>
+
+      <div className="w-100 auth-page-transition d-flex flex-column align-items-center" style={{ maxWidth: '660px', zIndex: 10 }}>
 
         {/* Brand Header */}
         <div className="text-center mb-4">
-          <BrandLogo width={48} height={48} className="mb-2" />
-          <h2 className="fw-bold mt-2 text-primary" style={{ letterSpacing: '-0.5px' }}>GrowStar</h2>
-          <p className="text-secondary small fw-medium">Grow Smarter. Invest Stronger.</p>
+          <BrandLogo width={64} height={64} className="mb-2" />
+          <h2 className="fw-bold mt-2 text-white" style={{ letterSpacing: '-0.5px' }}>GrowStar</h2>
+          <p className="text-muted small fw-medium">Grow Smarter. Invest Stronger.</p>
         </div>
 
         {/* ── Progress Stepper ── */}
-        <div className="card p-4 border-light shadow-sm rounded-4 mb-4 bg-white">
-          <div className="d-flex justify-content-between position-relative">
-            <div className="progress position-absolute top-50 start-0 end-0 translate-middle-y"
-              style={{ height: '3px', zIndex: 0, margin: '0 18px' }}>
-              <div className="progress-bar bg-primary"
-                style={{ width: `${((currentStep - 1) / (STEPS.length - 1)) * 100}%`, transition: 'width 0.5s' }} />
-            </div>
+        <div className="finance-card auth-card p-4 mb-4 text-center w-100" style={{ maxWidth: '660px' }}>
+          <div className="signup-stepper">
             {STEPS.map((label, idx) => {
               const n = idx + 1;
               const done = currentStep > n, active = currentStep === n;
@@ -321,9 +337,7 @@ const Signup = () => {
                 <div key={label}
                   className="text-center position-relative d-flex flex-column align-items-center"
                   style={{ zIndex: 1, width: '80px' }}>
-                  <div className={`rounded-circle d-flex align-items-center justify-content-center fw-bold
-                      ${done ? 'bg-success text-white' : active ? 'bg-primary text-white shadow' : 'bg-white text-secondary border border-2'}`}
-                    style={{ width: '34px', height: '34px', fontSize: '0.9rem' }}>
+                  <div className={`step-indicator ${done ? 'completed' : active ? 'active' : ''}`}>
                     {done ? <i className="bi bi-check-lg" /> : n}
                   </div>
                   <span className="mt-2 text-muted fw-semibold text-center"
@@ -336,8 +350,8 @@ const Signup = () => {
           </div>
         </div>
 
-        <Card title={currentStep === 4 ? 'Registration Successful' : 'New Client Registration'}>
-          {apiError && <div className="alert alert-danger small py-2 mb-3">{apiError}</div>}
+        <Card className="auth-card" title={currentStep === 4 ? 'Registration Successful' : 'New Client Registration'}>
+          {apiError && <div className="alert alert-danger small py-2 mb-3 bg-danger-subtle border-danger text-danger-emphasis">{apiError}</div>}
 
           {/* ════════════ STEP 1: Client Details ════════════ */}
           {currentStep === 1 && (
@@ -356,19 +370,20 @@ const Signup = () => {
                   <label className="form-label">Email Address <span className="text-danger">*</span></label>
                   <input type="email" name="email"
                     className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                    placeholder="e.g. name@email.com"
                     value={formData.email} onChange={handleChange} />
                   {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                 </div>
                 <div className="col-md-6 mb-3">
                   <label className="form-label">Mobile Number <span className="text-danger">*</span></label>
                   <div className="input-group">
-                    <span className="input-group-text text-secondary small">+91</span>
+                    <span className="input-group-text text-secondary small bg-dark-subtle border-secondary border-opacity-25" style={{ color: '#94a3b8 !important' }}>+91</span>
                     <input type="text" name="phoneNumber"
                       className={`form-control ${errors.phoneNumber ? 'is-invalid' : isPhoneValid ? 'is-valid' : ''}`}
                       placeholder="10-digit number"
                       value={formData.phoneNumber} onChange={handleChange} />
                     {isPhoneValid && (
-                      <div className="valid-feedback" style={{ display: 'block' }}>
+                      <div className="valid-feedback text-success small w-100 mt-1" style={{ display: 'block' }}>
                         ✓ Valid Indian mobile number
                       </div>
                     )}
@@ -381,6 +396,7 @@ const Signup = () => {
                 <label className="form-label">Residential Address <span className="text-danger">*</span></label>
                 <textarea name="address" rows="2"
                   className={`form-control ${errors.address ? 'is-invalid' : ''}`}
+                  placeholder="Street address, City, State, ZIP"
                   value={formData.address} onChange={handleChange} />
                 {errors.address && <div className="invalid-feedback">{errors.address}</div>}
               </div>
@@ -404,7 +420,7 @@ const Signup = () => {
                 </div>
               </div>
 
-              <button type="button" className="btn btn-primary w-100 py-2"
+              <button type="button" className="btn btn-primary w-100 py-2.5"
                 onClick={handleGenerateOTPs} disabled={generatingOtp}>
                 {generatingOtp
                   ? <><span className="spinner-border spinner-border-sm me-2" />Sending Verification Code...</>
@@ -416,7 +432,7 @@ const Signup = () => {
           {/* ════════════ STEP 2: OTP Verification & Validation ════════════ */}
           {currentStep === 2 && (
             <div className="animate-fade">
-              <div className="alert alert-primary py-2 mb-4 d-flex align-items-center gap-2 small">
+              <div className="alert alert-primary py-2 mb-4 d-flex align-items-center gap-2 small bg-primary-subtle border-primary text-primary-emphasis">
                 <i className="bi bi-shield-exclamation fs-5" />
                 <span>
                   Verify your <strong>email address</strong> via OTP. Your mobile number has been pre-validated.
@@ -427,12 +443,12 @@ const Signup = () => {
 
                 {/* ── Phone Validation Panel ── */}
                 <div className="col-md-6">
-                  <div className="rounded-3 p-3 h-100 border border-success bg-success-subtle d-flex flex-column justify-content-between"
-                    style={{ transition: 'all 0.3s' }}>
+                  <div className="rounded-3 p-3 h-100 d-flex flex-column justify-content-between"
+                    style={{ background: 'rgba(25, 135, 84, 0.12)', border: '1px solid rgba(25, 135, 84, 0.25)', transition: 'all 0.3s' }}>
                     <div>
                       <div className="d-flex align-items-center justify-content-between mb-2">
                         <span className="fw-semibold small text-success d-flex align-items-center gap-1">
-                          <i className="bi bi-phone" /> Mobile Verification
+                          <i className="bi bi-phone" /> Mobile
                         </span>
                         <span className="badge bg-success">
                           <i className="bi bi-patch-check-fill me-1" />Validated
@@ -444,9 +460,9 @@ const Signup = () => {
                       </p>
                       
                       <div className="alert alert-success py-2 px-2 d-flex align-items-center gap-2 mb-0 mt-3"
-                           style={{ fontSize: '0.75rem', borderRadius: '6px' }}>
+                           style={{ fontSize: '0.75rem', borderRadius: '6px', backgroundColor: 'rgba(25, 135, 84, 0.15)', color: '#a3cfbb', borderColor: 'rgba(25, 135, 84, 0.2)' }}>
                         <i className="bi bi-check-circle-fill" />
-                        <span>Mobile Number Validated</span>
+                        <span>Validated</span>
                       </div>
                     </div>
                   </div>
@@ -454,12 +470,15 @@ const Signup = () => {
 
                 {/* ── Email OTP Panel (Backend) ── */}
                 <div className="col-md-6">
-                  <div className={`rounded-3 p-3 h-100 border ${emailVerified ? 'border-success bg-success-subtle' : 'border-secondary-subtle bg-light'}`}
-                    style={{ transition: 'all 0.3s' }}>
+                  <div className="rounded-3 p-3 h-100"
+                    style={{ 
+                      background: emailVerified ? 'rgba(25, 135, 84, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                      border: emailVerified ? '1px solid rgba(25, 135, 84, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
+                      transition: 'all 0.3s' 
+                    }}>
                     <div className="d-flex align-items-center justify-content-between mb-2">
-                      <span className="fw-semibold small text-primary d-flex align-items-center gap-1">
+                      <span className="fw-semibold small text-primary d-flex align-items-center gap-1" style={{ color: '#D4AF37 !important' }}>
                         <i className="bi bi-envelope-at" /> Email OTP
-                        <span className="badge bg-secondary ms-1" style={{ fontSize: '0.6rem' }}>Gmail</span>
                       </span>
                       <VerifBadge verified={emailVerified} />
                     </div>
@@ -481,7 +500,7 @@ const Signup = () => {
                     <OtpStatusMessage status={emailOtpStatus} />
 
                     <button type="button"
-                      className={`btn btn-sm w-100 mt-2 ${emailVerified ? 'btn-success' : 'btn-primary'}`}
+                      className={`btn btn-sm w-100 mt-2 ${emailVerified ? 'btn-success text-white' : 'btn-primary'}`}
                       onClick={handleVerifyEmailOtp}
                       disabled={emailVerified || verifyingEmail}>
                       {verifyingEmail
@@ -496,7 +515,7 @@ const Signup = () => {
                         className="btn btn-link btn-sm text-muted p-0 mt-2 w-100"
                         onClick={handleResendEmailOtp}
                         disabled={emailCooldown > 0 || resendingEmail}
-                        style={{ fontSize: '0.72rem' }}>
+                        style={{ fontSize: '0.72rem', textDecoration: 'none' }}>
                         {resendingEmail
                           ? <><span className="spinner-border spinner-border-sm me-1" />Resending...</>
                           : emailCooldown > 0
@@ -509,10 +528,12 @@ const Signup = () => {
               </div>
 
               {/* ── Verification Status Bar ── */}
-              <div className={`rounded-3 p-3 mb-4 border small d-flex align-items-center gap-4 ${
-                emailVerified
-                  ? 'border-success bg-success-subtle text-success'
-                  : 'border-secondary-subtle bg-light text-secondary'}`}>
+              <div className="rounded-3 p-3 mb-4 small d-flex align-items-center gap-4"
+                style={{
+                  background: emailVerified ? 'rgba(25, 135, 84, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                  border: emailVerified ? '1px solid rgba(25, 135, 84, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
+                  color: emailVerified ? '#a3cfbb' : '#94a3b8'
+                }}>
                 <span>
                   <i className="bi bi-check-circle-fill text-success me-1" />
                   Mobile (Validated)
@@ -522,12 +543,12 @@ const Signup = () => {
                   Email (OTP)
                 </span>
                 {emailVerified
-                  ? <span className="ms-auto fw-semibold"><i className="bi bi-shield-check me-1" />Email verified — ready</span>
+                  ? <span className="ms-auto fw-semibold text-success"><i className="bi bi-shield-check me-1" />Ready to proceed</span>
                   : <span className="ms-auto" style={{ fontSize: '0.72rem' }}>Verify email to continue</span>}
               </div>
 
               <div className="d-flex gap-2">
-                <button type="button" className="btn btn-outline-secondary w-50"
+                <button type="button" className="btn btn-outline-primary w-50"
                   onClick={() => setCurrentStep(1)}>
                   <i className="bi bi-arrow-left me-1" />Back
                 </button>
@@ -546,12 +567,12 @@ const Signup = () => {
           {currentStep === 3 && (
             <form onSubmit={handleSubmitRegistration} className="animate-fade">
               {emailVerified && phoneVerified ? (
-                <div className="alert alert-success py-2 small mb-4 d-flex align-items-center gap-2">
+                <div className="alert alert-success py-2 small mb-4 d-flex align-items-center gap-2 bg-success-subtle border-success text-success-emphasis">
                   <i className="bi bi-shield-check" />
                   <span>Both mobile and email verified. Create your secure login password below.</span>
                 </div>
               ) : (
-                <div className="alert alert-danger py-2 small mb-4 d-flex align-items-center gap-2">
+                <div className="alert alert-danger py-2 small mb-4 d-flex align-items-center gap-2 bg-danger-subtle border-danger text-danger-emphasis">
                   <i className="bi bi-exclamation-triangle" />
                   <span>Verification is incomplete. Please complete email and mobile validation.</span>
                 </div>
@@ -570,13 +591,14 @@ const Signup = () => {
                   <label className="form-label">Confirm Password <span className="text-danger">*</span></label>
                   <input type="password" name="confirmPassword"
                     className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
+                    placeholder="Re-enter password"
                     value={formData.confirmPassword} onChange={handleChange} />
                   {errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword}</div>}
                 </div>
               </div>
 
-              <div className="d-flex gap-2 mt-4 pt-2 border-top border-light">
-                <button type="button" className="btn btn-outline-secondary w-50"
+              <div className="d-flex gap-2 mt-4 pt-2 border-top" style={{ borderColor: 'rgba(255, 255, 255, 0.08) !important' }}>
+                <button type="button" className="btn btn-outline-primary w-50"
                   onClick={() => setCurrentStep(2)}>
                   <i className="bi bi-arrow-left me-1" />Back
                 </button>
@@ -593,11 +615,11 @@ const Signup = () => {
           {/* ════════════ STEP 4: Success ════════════ */}
           {currentStep === 4 && (
             <div className="text-center py-4 animate-fade">
-              <div className="d-inline-flex p-4 rounded-circle bg-success-subtle text-success mb-4">
+              <div className="d-inline-flex p-4 rounded-circle mb-4" style={{ background: 'rgba(25, 135, 84, 0.15)', border: '1px solid rgba(25, 135, 84, 0.3)', color: '#a3cfbb' }}>
                 <i className="bi bi-shield-check" style={{ fontSize: '3rem' }} />
               </div>
-              <h3 className="fw-bold text-success">Account Created!</h3>
-              <p className="text-secondary mt-2 px-md-5">
+              <h3 className="fw-bold text-success" style={{ background: 'none', WebkitTextFillColor: 'initial', color: '#198754 !important' }}>Account Created!</h3>
+              <p className="text-muted mt-2 px-md-5">
                 Your GrowStar account has been created and fully verified.
                 Redirecting to the login page...
               </p>
@@ -611,13 +633,21 @@ const Signup = () => {
 
           {currentStep !== 4 && (
             <>
-              <hr className="my-4 text-secondary opacity-25" />
+              <hr className="my-4" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
               <div className="text-center small">
                 <span className="text-muted">Already have an account? </span>
-                <Link to="/login" className="text-primary fw-semibold text-decoration-none">Sign in here</Link>
+                <Link to="/login" className="fw-semibold text-decoration-none" style={{ color: '#D4AF37' }}>Sign in here</Link>
               </div>
             </>
           )}
+
+          {/* Trust Badge Indicator */}
+          <div className="text-center mt-4">
+            <div className="auth-trust-badge">
+              <i className="bi bi-shield-fill-check"></i>
+              <span>Secure Client Portal | 256-bit SSL</span>
+            </div>
+          </div>
         </Card>
       </div>
     </div>
