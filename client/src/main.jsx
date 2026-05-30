@@ -9,6 +9,7 @@ import './index.css';
 // Set up the backend API URL for production deployment
 const prodApiUrl = 'https://growstar-backend.onrender.com';
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? prodApiUrl : '');
+axios.defaults.timeout = 15000; // 15 seconds request timeout
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

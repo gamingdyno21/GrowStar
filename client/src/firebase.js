@@ -24,8 +24,18 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Guard against multiple Firebase initializations during HMR (hot module reload)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+let app = null;
+let auth = null;
 
-export const auth = getAuth(app);
-export { RecaptchaVerifier, signInWithPhoneNumber };
+if (firebaseConfig.apiKey) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    auth = getAuth(app);
+  } catch (err) {
+    console.error("Firebase initialization failed:", err);
+  }
+} else {
+  console.warn("Firebase configuration values missing. Firebase features will be disabled.");
+}
+
+export { auth, RecaptchaVerifier, signInWithPhoneNumber };
