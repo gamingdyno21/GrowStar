@@ -7,7 +7,8 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import './index.css';
 
 // Set up the backend API URL for production deployment
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+const prodApiUrl = 'https://growstar-backend.onrender.com';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? prodApiUrl : '');
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

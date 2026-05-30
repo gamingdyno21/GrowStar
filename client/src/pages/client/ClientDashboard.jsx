@@ -152,8 +152,8 @@ const ClientDashboard = () => {
           <div className="animate-fade">
             
             {/* SECTION 1: Investment Summary Cards */}
-            <div className="row g-3 mb-4 text-start">
-              <div className="col-12 col-md">
+            <div className="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 mb-4 text-start">
+              <div className="col">
                 <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
                   <div className="bg-primary-subtle text-primary p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
                     <i className="bi bi-cash fs-5"></i>
@@ -164,7 +164,7 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-              <div className="col-12 col-md">
+              <div className="col">
                 <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
                   <div className="bg-success-subtle text-success p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
                     <i className="bi bi-graph-up-arrow fs-5"></i>
@@ -177,7 +177,7 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-              <div className="col-12 col-md">
+              <div className="col">
                 <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
                   <div className="bg-primary-subtle text-primary p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', backgroundColor: '#eff6ff', color: 'var(--accent-blue)' }}>
                     <i className="bi bi-shield-fill-check fs-5"></i>
@@ -188,7 +188,7 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-              <div className="col-12 col-md">
+              <div className="col">
                 <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
                   <div className="bg-danger-subtle text-danger p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
                     <i className="bi bi-wallet2 fs-5"></i>
@@ -199,7 +199,7 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-              <div className="col-12 col-md">
+              <div className="col">
                 <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
                   <div className="bg-warning-subtle text-warning p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
                     <i className="bi bi-lightning-fill fs-5"></i>

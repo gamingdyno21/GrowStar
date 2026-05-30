@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import BrandLogo from '../common/BrandLogo';
@@ -7,6 +7,7 @@ const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -27,19 +28,23 @@ const Navbar = () => {
         <button
           className="navbar-toggler border-0"
           type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#clientNavbar"
+          onClick={() => setIsOpen(!isOpen)}
           aria-controls="clientNavbar"
-          aria-expanded="false"
+          aria-expanded={isOpen}
           aria-label="Toggle navigation"
         >
           <span className="navbar-toggler-icon"></span>
         </button>
-        <div className="collapse navbar-collapse" id="clientNavbar">
+        <div className={`collapse navbar-collapse ${isOpen ? 'show' : ''}`} id="clientNavbar">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-4">
             <li className="nav-item">
               <Link className={`nav-link fw-semibold px-3 ${isActive('/dashboard') ? 'text-primary' : 'text-secondary'}`} to="/dashboard">
                 <i className="bi bi-grid-1x2-fill me-1"></i> Dashboard
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link className={`nav-link fw-semibold px-3 ${isActive('/transactions') ? 'text-primary' : 'text-secondary'}`} to="/transactions">
+                <i className="bi bi-wallet2 me-1"></i> Transactions
               </Link>
             </li>
             <li className="nav-item">

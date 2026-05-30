@@ -158,8 +158,35 @@ body {
 .admin-sidebar {
   background-color: var(--primary-dark);
   color: #f8fafc;
-  min-height: 100vh;
   box-shadow: 2px 0 8px rgba(15, 23, 42, 0.05);
+}
+
+@media (min-width: 768px) {
+  .admin-sidebar {
+    min-height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .admin-sidebar {
+    width: 100%;
+    position: relative;
+    z-index: 1050;
+    transition: all 0.3s ease;
+  }
+  
+  .admin-sidebar.mobile-open {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 100vh;
+    z-index: 1060;
+    overflow-y: auto;
+  }
 }
 
 .sidebar-link {
