@@ -142,7 +142,7 @@ const Signup = () => {
 
     let emailSent = false;
 
-    // ── Email OTP via backend (Nodemailer / Gmail SMTP) ──
+    // ── Email OTP via backend (Resend Transactional Email) ──
     try {
       const resEmail = await authService.resendOTP(formData.email, null);
       if (resEmail?.success) {

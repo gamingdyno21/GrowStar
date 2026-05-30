@@ -1,23 +1,20 @@
 const { Resend } = require('resend');
 
-const apiKey = process.env.RESEND_API_KEY;
-let resend;
-
-if (apiKey) {
-  resend = new Resend(apiKey);
-  console.log('[SMTP SETUP] Resend client initialized successfully with API key.');
-} else {
-  console.warn('[SMTP WARNING] RESEND_API_KEY environment variable is not defined. Resend initialization skipped.');
-}
-
 const sendEmail = async ({ to, otp }) => {
-  if (!apiKey || !resend) {
-    throw new Error('Resend configuration error: RESEND_API_KEY environment variable is required.');
+  const apiKey = process.env.RESEND_API_KEY;
+  const sender = process.env.RESEND_FROM || 'GrowStar <onboarding@resend.dev>';
+
+  // Diagnostics logs before sending (points 3, 6, 8)
+  console.log("RESEND KEY EXISTS:", !!apiKey);
+  console.log("RESEND FROM:", sender);
+
+  if (!apiKey) {
+    const errMsg = 'Resend configuration error: RESEND_API_KEY environment variable is required.';
+    console.error(`[RESEND ERROR] ${errMsg}`);
+    throw new Error(errMsg);
   }
 
-  // Resend requires a verified domain to send from in production.
-  // In sandbox, onboarding@resend.dev is used.
-  const sender = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+  const resend = new Resend(apiKey);
 
   // GrowStar premium email design markup
   const htmlContent = `
@@ -73,12 +70,15 @@ const sendEmail = async ({ to, otp }) => {
       console.log(`[RESEND SERVICE] Sending OTP to ${to} (Attempt ${attempt}/${maxRetries})...`);
       
       const response = await resend.emails.send({
-        from: `GrowStar <${sender}>`,
+        from: sender, // Passed directly to prevent nested headers
         to: [to],
         subject: 'GrowStar - OTP Verification',
         text: `Your GrowStar verification code is: ${otp}. It is valid for 10 minutes.`,
         html: htmlContent,
       });
+
+      // Log exact Resend API response (point 4)
+      console.log(`[RESEND API RESPONSE] Exact response:`, JSON.stringify(response, null, 2));
 
       if (response.error) {
         throw new Error(response.error.message || 'Resend API returned an error.');
@@ -100,5 +100,6 @@ const sendEmail = async ({ to, otp }) => {
 };
 
 module.exports = { sendEmail };
+
 
 
