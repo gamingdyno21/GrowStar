@@ -43,8 +43,8 @@ const Navbar = () => {
               </Link>
             </li>
             <li className="nav-item">
-              <Link className={`nav-link fw-semibold px-3 ${isActive('/transactions') ? 'text-primary' : 'text-secondary'}`} to="/transactions">
-                <i className="bi bi-wallet2 me-1"></i> Transactions
+              <Link className={`nav-link fw-semibold px-3 ${isActive('/documents') ? 'text-primary' : 'text-secondary'}`} to="/documents">
+                <i className="bi bi-folder2-open me-1"></i> Documents
               </Link>
             </li>
             <li className="nav-item">

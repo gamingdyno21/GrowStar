@@ -11,7 +11,7 @@ import ResetPassword from '../pages/auth/ResetPassword';
 // Client Pages
 import ClientDashboard from '../pages/client/ClientDashboard';
 import Profile from '../pages/client/Profile';
-import Transactions from '../pages/client/Transactions';
+import Documents from '../pages/client/Documents';
 import Messages from '../pages/client/Messages';
 
 // Admin Pages
@@ -57,13 +57,14 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/transactions"
+        path="/documents"
         element={
           <ProtectedRoute>
-            <Transactions />
+            <Documents />
           </ProtectedRoute>
         }
       />
+      <Route path="/transactions" element={<Navigate to="/documents" replace />} />
       <Route
         path="/messages"
         element={

@@ -24,24 +24,9 @@ const getActivity = async () => {
   return response.data;
 };
 
-// Financial Records CRUD
+// Financial Records — Read Only (mutations are admin-only)
 const getRecords = async () => {
   const response = await axios.get('/api/finance', getAuthHeaders());
-  return response.data;
-};
-
-const createRecord = async (recordData) => {
-  const response = await axios.post('/api/finance', recordData, getAuthHeaders());
-  return response.data;
-};
-
-const updateRecord = async (id, recordData) => {
-  const response = await axios.put(`/api/finance/${id}`, recordData, getAuthHeaders());
-  return response.data;
-};
-
-const deleteRecord = async (id) => {
-  const response = await axios.delete(`/api/finance/${id}`, getAuthHeaders());
   return response.data;
 };
 
@@ -50,9 +35,6 @@ const userService = {
   updateProfile,
   getActivity,
   getRecords,
-  createRecord,
-  updateRecord,
-  deleteRecord,
 };
 
 export default userService;
