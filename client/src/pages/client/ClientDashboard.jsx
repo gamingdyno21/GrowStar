@@ -8,11 +8,64 @@ import userService from '../../services/userService';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
 
+/* ── SVG Chart ──────────────────────────────────────────────── */
+const ProfitChart = ({ history }) => {
+  if (!history || history.length === 0) {
+    return (
+      <div className="text-center py-4" style={{ color: '#94a3b8' }}>
+        <i className="bi bi-graph-up d-block" style={{ fontSize: '2.5rem', color: '#d1d5db', marginBottom: '0.75rem' }}></i>
+        <p style={{ fontSize: '0.875rem', margin: 0, color: '#94a3b8' }}>No profit history yet.</p>
+      </div>
+    );
+  }
+
+  const W = 500, H = 140, PAD = 20;
+  const profits = history.map(h => h.profit);
+  const maxP = Math.max(...profits, 100);
+  const minP = Math.min(...profits, 0);
+  const range = maxP - minP || 1;
+
+  const pts = history.map((h, i) => ({
+    x: PAD + (i / Math.max(history.length - 1, 1)) * (W - 2 * PAD),
+    y: H - PAD - ((h.profit - minP) / range) * (H - 2 * PAD),
+    profit: h.profit,
+    date: new Date(h.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
+  }));
+
+  const pathD = pts.reduce((a, p, i) => a + `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`, '');
+  const areaD = pts.length
+    ? `${pathD} L ${pts[pts.length-1].x} ${H - PAD} L ${pts[0].x} ${H - PAD} Z`
+    : '';
+
+  return (
+    <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '0.75rem', marginBottom: '1rem' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '120px' }}>
+        <defs>
+          <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2563EB" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1={PAD} y1={H/2} x2={W-PAD} y2={H/2} stroke="#e2e8f0" strokeDasharray="3 3" />
+        <line x1={PAD} y1={H-PAD} x2={W-PAD} y2={H-PAD} stroke="#e2e8f0" />
+        {areaD && <path d={areaD} fill="url(#profitGrad)" />}
+        {pathD  && <path d={pathD} fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+        {pts.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r="4" fill="#2563EB" stroke="#fff" strokeWidth="2" />
+            <title>{`${p.date}: ₹${p.profit.toLocaleString('en-IN')}`}</title>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+};
+
+/* ── Main Component ─────────────────────────────────────────── */
 const ClientDashboard = () => {
   const { user, refreshUser } = useAuth();
   const { showToast } = useToast();
-  
-  // Dashboard & Profile Data
+
   const [profile, setProfile] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,237 +78,183 @@ const ClientDashboard = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Profile & Portfolio Details
       const profileRes = await userService.getProfile();
-      if (profileRes.success && profileRes.data) {
-        setProfile(profileRes.data);
-      }
+      if (profileRes.success && profileRes.data) setProfile(profileRes.data);
 
-      // 2. Fetch Transaction History
       const recordsRes = await userService.getRecords();
       if (recordsRes.success) {
-        // Only show Deposit & Withdrawal as per Section 4 requirement
-        const filtered = recordsRes.data.filter(
-          r => r.type === 'Deposit' || r.type === 'Withdrawal'
-        );
-        setTransactions(filtered);
+        setTransactions(recordsRes.data.filter(r => r.type === 'Deposit' || r.type === 'Withdrawal'));
       }
-    } catch (err) {
-      console.error('Failed to load client portal data:', err);
-      showToast('Failed to load portal portfolio details.', 'error');
+    } catch {
+      showToast('Failed to load portfolio details.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper to draw SVG line chart for Section 3
-  const renderSVGChart = (history) => {
-    if (!history || history.length === 0) {
-      return (
-        <div className="text-center py-4 text-secondary my-3 bg-light-subtle rounded border">
-          <i className="bi bi-graph-up d-block fs-3 mb-1 text-muted"></i>
-          <span className="small">No profit history points added yet.</span>
-        </div>
-      );
-    }
-
-    const width = 500;
-    const height = 150;
-    const padding = 20;
-
-    const profits = history.map(h => h.profit);
-    const maxProfit = Math.max(...profits, 100);
-    const minProfit = Math.min(...profits, 0);
-    const profitRange = maxProfit - minProfit || 1;
-
-    const points = history.map((h, index) => {
-      const x = padding + (index / (history.length - 1 || 1)) * (width - 2 * padding);
-      const y = height - padding - ((h.profit - minProfit) / profitRange) * (height - 2 * padding);
-      return { x, y, profit: h.profit, date: new Date(h.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) };
-    });
-
-    const pathD = points.reduce((acc, p, i) => {
-      return acc + `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`;
-    }, '');
-
-    const areaD = points.length > 0 
-      ? `${pathD} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`
-      : '';
-
-    return (
-      <div className="bg-light p-3 rounded-3 border mb-3">
-        <div className="ratio ratio-21x9" style={{ maxHeight: '160px' }}>
-          <svg viewBox={`0 0 ${width} ${height}`} className="w-100 h-100">
-            <defs>
-              <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="rgba(37, 99, 235, 0.2)" />
-                <stop offset="100%" stopColor="rgba(37, 99, 235, 0.0)" />
-              </linearGradient>
-            </defs>
-            <line x1={padding} y1={height/2} x2={width-padding} y2={height/2} stroke="#e2e8f0" strokeDasharray="3 3" />
-            <line x1={padding} y1={height - padding} x2={width-padding} y2={height - padding} stroke="#cbd5e1" />
-            {areaD && <path d={areaD} fill="url(#chartGradient)" />}
-            {pathD && <path d={pathD} fill="none" stroke="var(--accent-blue)" strokeWidth="2.5" strokeLinecap="round" />}
-            {points.map((p, i) => (
-              <g key={i} className="chart-dot">
-                <circle cx={p.x} cy={p.y} r="4" fill="var(--accent-blue)" stroke="#ffffff" strokeWidth="1.5" />
-                <title>{`${p.date}: ₹${p.profit}`}</title>
-              </g>
-            ))}
-          </svg>
-        </div>
-      </div>
-    );
+  const portfolio = profile?.portfolio || {
+    totalInvested: 0, currentProfit: 0, totalPortfolioValue: 0,
+    totalWithdrawn: 0, todaysProfit: 0,
   };
 
-  const getPortfolioValue = () => {
-    return profile?.portfolio || {
-      totalInvested: 0,
-      currentProfit: 0,
-      totalPortfolioValue: 0,
-      totalWithdrawn: 0,
-      todaysProfit: 0
-    };
-  };
-
-  const portfolio = getPortfolioValue();
+  const metricCards = [
+    {
+      label: 'Total Invested',
+      value: formatCurrency(portfolio.totalInvested),
+      icon: 'bi-cash-stack',
+      iconBg: 'rgba(37,99,235,0.08)',
+      iconColor: '#2563EB',
+    },
+    {
+      label: 'Current Profit',
+      value: (portfolio.currentProfit >= 0 ? '+' : '') + formatCurrency(portfolio.currentProfit),
+      icon: 'bi-graph-up-arrow',
+      iconBg: portfolio.currentProfit >= 0 ? 'rgba(5,150,105,0.08)' : 'rgba(220,38,38,0.08)',
+      iconColor: portfolio.currentProfit >= 0 ? '#059669' : '#dc2626',
+      valueColor: portfolio.currentProfit >= 0 ? '#059669' : '#dc2626',
+    },
+    {
+      label: 'Portfolio Value',
+      value: formatCurrency(portfolio.totalPortfolioValue),
+      icon: 'bi-pie-chart-fill',
+      iconBg: 'rgba(124,58,237,0.08)',
+      iconColor: '#7c3aed',
+    },
+    {
+      label: 'Total Withdrawn',
+      value: formatCurrency(portfolio.totalWithdrawn),
+      icon: 'bi-wallet2',
+      iconBg: 'rgba(217,119,6,0.08)',
+      iconColor: '#d97706',
+    },
+    {
+      label: "Today's Profit",
+      value: (portfolio.todaysProfit >= 0 ? '+' : '') + formatCurrency(portfolio.todaysProfit),
+      icon: 'bi-lightning-charge-fill',
+      iconBg: portfolio.todaysProfit >= 0 ? 'rgba(5,150,105,0.08)' : 'rgba(220,38,38,0.08)',
+      iconColor: portfolio.todaysProfit >= 0 ? '#059669' : '#dc2626',
+      valueColor: portfolio.todaysProfit >= 0 ? '#059669' : '#dc2626',
+    },
+  ];
 
   return (
-    <div className="bg-light min-vh-100 d-flex flex-column">
+    <div style={{ background: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
 
-      <div className="container py-4 flex-grow-1">
-        {/* Verification Status Banner */}
+      <div className="container flex-grow-1 py-4" style={{ maxWidth: '1280px' }}>
+
+        {/* Status banners */}
         {profile?.status === 'Pending' && (
-          <div className="alert alert-warning border-warning-subtle d-flex align-items-center mb-4 p-3 rounded-3 shadow-sm" role="alert">
-            <i className="bi bi-exclamation-triangle-fill fs-4 text-warning me-3"></i>
+          <div
+            className="d-flex align-items-center gap-3 mb-4 p-3 rounded-3 animate-fade"
+            style={{ background: '#fefce8', border: '1px solid #fde047', color: '#854d0e' }}
+          >
+            <i className="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0" style={{ color: '#d97706' }}></i>
             <div>
-              <h6 className="alert-heading fw-bold mb-1">KYC Verification In Progress</h6>
-              <span className="small text-secondary">
-                Your PAN and Aadhaar credentials are currently undergoing review by our compliance team. Full investment options will remain view-only during auditing.
+              <strong style={{ display: 'block', fontSize: '0.875rem' }}>KYC Verification In Progress</strong>
+              <span style={{ fontSize: '0.8125rem', opacity: 0.85 }}>
+                Your PAN and Aadhaar are under review. Full features available after approval.
               </span>
             </div>
           </div>
         )}
-
         {profile?.status === 'Rejected' && (
-          <div className="alert alert-danger border-danger-subtle d-flex align-items-center mb-4 p-3 rounded-3 shadow-sm" role="alert">
-            <i className="bi bi-x-octagon-fill fs-4 text-danger me-3"></i>
+          <div
+            className="d-flex align-items-center gap-3 mb-4 p-3 rounded-3 animate-fade"
+            style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}
+          >
+            <i className="bi bi-x-octagon-fill fs-5 flex-shrink-0" style={{ color: '#dc2626' }}></i>
             <div>
-              <h6 className="alert-heading fw-bold mb-1">Verification Discrepancies Found</h6>
-              <span className="small text-secondary">
-                Our verification checks flagged errors in your uploaded KYC documentation. Please verify your details in the Profile page or contact support.
+              <strong style={{ display: 'block', fontSize: '0.875rem' }}>Verification Discrepancies Found</strong>
+              <span style={{ fontSize: '0.8125rem', opacity: 0.85 }}>
+                KYC verification flagged errors. Please update your profile or contact support.
               </span>
             </div>
           </div>
         )}
 
         {loading ? (
-          <Loader message="Loading your GrowStar portfolio..." />
+          <Loader message="Loading your portfolio..." skeleton rows={5} />
         ) : (
           <div className="animate-fade">
-            
-            {/* SECTION 1: Investment Summary Cards */}
-            <div className="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 mb-4 text-start">
-              <div className="col">
-                <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
-                  <div className="bg-primary-subtle text-primary p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
-                    <i className="bi bi-cash fs-5"></i>
-                  </div>
-                  <div>
-                    <span className="text-secondary small fw-semibold d-block text-uppercase">Total Invested</span>
-                    <h5 className="fw-bold text-dark mb-0">{formatCurrency(portfolio.totalInvested)}</h5>
-                  </div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
-                  <div className="bg-success-subtle text-success p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
-                    <i className="bi bi-graph-up-arrow fs-5"></i>
-                  </div>
-                  <div>
-                    <span className="text-secondary small fw-semibold d-block text-uppercase">Current Profit</span>
-                    <h5 className={`fw-bold mb-0 ${portfolio.currentProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {portfolio.currentProfit >= 0 ? '+' : ''}{formatCurrency(portfolio.currentProfit)}
-                    </h5>
-                  </div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
-                  <div className="bg-primary-subtle text-primary p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)', backgroundColor: '#eff6ff', color: 'var(--accent-blue)' }}>
-                    <i className="bi bi-shield-fill-check fs-5"></i>
-                  </div>
-                  <div>
-                    <span className="text-secondary small fw-semibold d-block text-uppercase">Portfolio Value</span>
-                    <h5 className="fw-bold text-dark mb-0">{formatCurrency(portfolio.totalPortfolioValue)}</h5>
-                  </div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
-                  <div className="bg-danger-subtle text-danger p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
-                    <i className="bi bi-wallet2 fs-5"></i>
-                  </div>
-                  <div>
-                    <span className="text-secondary small fw-semibold d-block text-uppercase">Total Withdrawn</span>
-                    <h5 className="fw-bold text-dark mb-0">{formatCurrency(portfolio.totalWithdrawn)}</h5>
-                  </div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="metric-card h-100 d-flex flex-row align-items-center ps-4">
-                  <div className="bg-warning-subtle text-warning p-2.5 me-3 d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-sm)' }}>
-                    <i className="bi bi-lightning-fill fs-5"></i>
-                  </div>
-                  <div>
-                    <span className="text-secondary small fw-semibold d-block text-uppercase">Today's Profit</span>
-                    <h5 className={`fw-bold mb-0 ${portfolio.todaysProfit >= 0 ? 'text-success' : 'text-danger'}`}>
-                      {portfolio.todaysProfit >= 0 ? '+' : ''}{formatCurrency(portfolio.todaysProfit)}
-                    </h5>
-                  </div>
-                </div>
-              </div>
+
+            {/* Welcome line */}
+            <div className="mb-4">
+              <h2 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '1.375rem', color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+                Welcome back, {user?.fullName?.split(' ')[0] || 'Investor'} 👋
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0.25rem 0 0' }}>
+                Here's your portfolio overview for today
+              </p>
             </div>
 
-            {/* Layout Grid: Sections 2 & 4 (Left) and Section 3 (Right) */}
-            <div className="row g-4 text-start">
-              
-              {/* Left Column (Investment Tables & Transaction Ledger) */}
+            {/* Metric Cards */}
+            <div className="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4">
+              {metricCards.map((m, i) => (
+                <div key={i} className="col">
+                  <div className="metric-card h-100">
+                    <div className="d-flex align-items-center gap-3">
+                      <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: m.iconColor, fontSize: '1.1875rem' }}>
+                        <i className={`bi ${m.icon}`}></i>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '0.25rem' }}>
+                          {m.label}
+                        </span>
+                        <div style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.125rem', fontWeight: 800, color: m.valueColor || '#0f172a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {m.value}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Content Grid */}
+            <div className="row g-4">
+
+              {/* Left Column */}
               <div className="col-lg-8">
-                
-                {/* SECTION 2: Active Investments Table */}
-                <Card title="Active Investment Assets" className="mb-4 shadow-sm border-0">
+
+                {/* Active Investments */}
+                <Card title="Active Investment Assets" className="mb-4">
                   {!profile?.activeInvestments || profile.activeInvestments.length === 0 ? (
-                    <div className="text-center py-5 text-secondary">
-                      <i className="bi bi-database-exclamation fs-1 mb-2 d-block text-muted"></i>
-                      No active investments in your portfolio.
+                    <div className="text-center py-5" style={{ color: '#94a3b8' }}>
+                      <i className="bi bi-database-exclamation d-block" style={{ fontSize: '2.5rem', color: '#d1d5db', marginBottom: '0.75rem' }}></i>
+                      <p style={{ fontSize: '0.875rem', margin: 0 }}>No active investments in your portfolio.</p>
                     </div>
                   ) : (
                     <div className="table-responsive">
-                      <table className="table table-hover align-middle mb-0 text-start">
+                      <table className="table table-hover align-middle mb-0">
                         <thead>
-                          <tr className="table-light text-secondary">
-                            <th className="ps-3 border-0">Asset / Share Name</th>
-                            <th className="border-0">Invested Capital</th>
-                            <th className="border-0">Current Value</th>
-                            <th className="border-0">Net Profit / Loss</th>
-                            <th className="text-end pe-3 border-0">Last Updated</th>
+                          <tr>
+                            <th className="ps-2">Asset / Share</th>
+                            <th>Invested</th>
+                            <th>Current Value</th>
+                            <th>P&amp;L</th>
+                            <th className="text-end pe-2">Last Updated</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {profile.activeInvestments.map((inv) => {
-                            const netPL = inv.currentValue - inv.investedAmount;
-                            const isProfit = netPL >= 0;
+                          {profile.activeInvestments.map(inv => {
+                            const pl = inv.currentValue - inv.investedAmount;
+                            const isProfit = pl >= 0;
                             return (
                               <tr key={inv._id}>
-                                <td className="ps-3 fw-bold text-dark">{inv.shareName}</td>
-                                <td className="text-secondary">{formatCurrency(inv.investedAmount)}</td>
-                                <td className="fw-semibold">{formatCurrency(inv.currentValue)}</td>
-                                <td className={`fw-bold ${isProfit ? 'text-success' : 'text-danger'}`}>
-                                  {isProfit ? '+' : ''}{formatCurrency(netPL)}
+                                <td className="ps-2 fw-600" style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem' }}>
+                                  {inv.shareName}
                                 </td>
-                                <td className="text-end pe-3 text-secondary small">{formatDate(inv.lastUpdated)}</td>
+                                <td style={{ color: '#64748b', fontSize: '0.875rem' }}>{formatCurrency(inv.investedAmount)}</td>
+                                <td style={{ fontWeight: 600, fontSize: '0.875rem' }}>{formatCurrency(inv.currentValue)}</td>
+                                <td>
+                                  <span style={{ fontWeight: 700, fontSize: '0.875rem', color: isProfit ? '#059669' : '#dc2626' }}>
+                                    {isProfit ? '+' : ''}{formatCurrency(pl)}
+                                  </span>
+                                </td>
+                                <td className="text-end pe-2" style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>
+                                  {formatDate(inv.lastUpdated)}
+                                </td>
                               </tr>
                             );
                           })}
@@ -265,42 +264,52 @@ const ClientDashboard = () => {
                   )}
                 </Card>
 
-                {/* SECTION 4: Transaction History */}
-                <Card title="Transaction History Ledger" className="shadow-sm border-0">
+                {/* Transaction History */}
+                <Card title="Transaction History">
                   {transactions.length === 0 ? (
-                    <div className="text-center py-5 text-secondary">
-                      <i className="bi bi-wallet-fill fs-1 mb-2 d-block text-muted"></i>
-                      No Deposit or Withdrawal activities found.
+                    <div className="text-center py-5" style={{ color: '#94a3b8' }}>
+                      <i className="bi bi-wallet-fill d-block" style={{ fontSize: '2.5rem', color: '#d1d5db', marginBottom: '0.75rem' }}></i>
+                      <p style={{ fontSize: '0.875rem', margin: 0 }}>No deposit or withdrawal activities found.</p>
                     </div>
                   ) : (
                     <div className="table-responsive">
-                      <table className="table table-hover align-middle mb-0 text-start">
+                      <table className="table table-hover align-middle mb-0">
                         <thead>
-                          <tr className="table-light text-secondary">
-                            <th className="ps-3 border-0">Type</th>
-                            <th className="border-0">Category / Purpose</th>
-                            <th className="border-0">Transaction Date</th>
-                            <th className="border-0">Status</th>
-                            <th className="text-end pe-3 border-0">Amount</th>
+                          <tr>
+                            <th className="ps-2">Type</th>
+                            <th>Category</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th className="text-end pe-2">Amount</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {transactions.map((t) => (
+                          {transactions.map(t => (
                             <tr key={t._id}>
-                              <td className="ps-3 fw-bold">
-                                <span className={`badge ${t.type === 'Deposit' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} px-2 py-1`}>
+                              <td className="ps-2">
+                                <span
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                    padding: '0.2em 0.625em', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600,
+                                    background: t.type === 'Deposit' ? '#d1fae5' : '#fee2e2',
+                                    color: t.type === 'Deposit' ? '#059669' : '#dc2626',
+                                  }}
+                                >
+                                  <i className={`bi ${t.type === 'Deposit' ? 'bi-arrow-down-circle-fill' : 'bi-arrow-up-circle-fill'}`}></i>
                                   {t.type}
                                 </span>
                               </td>
-                              <td className="text-secondary">{t.category}</td>
-                              <td className="text-secondary">{formatDate(t.date)}</td>
+                              <td style={{ color: '#64748b', fontSize: '0.875rem' }}>{t.category}</td>
+                              <td style={{ color: '#64748b', fontSize: '0.875rem' }}>{formatDate(t.date)}</td>
                               <td>
-                                <span className={`badge badge-status ${t.status.toLowerCase()}`}>
+                                <span className={`badge-status ${t.status.toLowerCase()}`}>
                                   {t.status}
                                 </span>
                               </td>
-                              <td className={`text-end pe-3 fw-bold ${t.type === 'Deposit' ? 'text-success' : 'text-danger'}`}>
-                                {t.type === 'Deposit' ? '+' : '-'} {formatCurrency(t.amount)}
+                              <td className="text-end pe-2">
+                                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: t.type === 'Deposit' ? '#059669' : '#dc2626' }}>
+                                  {t.type === 'Deposit' ? '+' : '-'} {formatCurrency(t.amount)}
+                                </span>
                               </td>
                             </tr>
                           ))}
@@ -309,32 +318,27 @@ const ClientDashboard = () => {
                     </div>
                   )}
                 </Card>
-
               </div>
 
-              {/* Right Column (Profit history and timeline chart) */}
+              {/* Right Column */}
               <div className="col-lg-4">
-                
-                {/* SECTION 3: Daily Profit History */}
-                <Card title="Daily Profit Analysis" className="shadow-sm border-0">
-                  {renderSVGChart(profile?.dailyProfitHistory)}
-                  
-                  {!profile?.dailyProfitHistory || profile.dailyProfitHistory.length === 0 ? (
-                    null
-                  ) : (
-                    <div className="table-responsive" style={{ maxHeight: '315px', overflowY: 'auto' }}>
-                      <table className="table table-sm align-middle text-start mb-0">
-                        <thead>
-                          <tr className="table-light small text-secondary">
-                            <th className="ps-3 border-0">Date</th>
-                            <th className="text-end pe-3 border-0">Daily Profit</th>
+                <Card title="Daily Profit Analysis">
+                  <ProfitChart history={profile?.dailyProfitHistory} />
+
+                  {profile?.dailyProfitHistory && profile.dailyProfitHistory.length > 0 && (
+                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      <table className="table align-middle mb-0" style={{ fontSize: '0.8375rem' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: '#fff' }}>
+                          <tr>
+                            <th className="ps-0" style={{ color: '#64748b', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
+                            <th className="text-end pe-0" style={{ color: '#64748b', fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profit</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {[...profile.dailyProfitHistory].reverse().map((h) => (
+                          {[...profile.dailyProfitHistory].reverse().map(h => (
                             <tr key={h._id}>
-                              <td className="ps-3 text-secondary">{formatDate(h.date)}</td>
-                              <td className={`text-end pe-3 fw-bold ${h.profit >= 0 ? 'text-success' : 'text-danger'}`}>
+                              <td className="ps-0" style={{ color: '#64748b', fontSize: '0.8125rem' }}>{formatDate(h.date)}</td>
+                              <td className="text-end pe-0" style={{ fontWeight: 700, color: h.profit >= 0 ? '#059669' : '#dc2626' }}>
                                 {h.profit >= 0 ? '+' : ''}{formatCurrency(h.profit)}
                               </td>
                             </tr>
@@ -344,14 +348,13 @@ const ClientDashboard = () => {
                     </div>
                   )}
                 </Card>
-
               </div>
 
             </div>
-
           </div>
         )}
       </div>
+
       <Footer />
     </div>
   );

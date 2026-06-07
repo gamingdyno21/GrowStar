@@ -2,164 +2,224 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
+
+const PARTICLES = [
+  { left: 8, top: 20, delay: 0, duration: 15 },
+  { left: 25, top: 40, delay: 2, duration: 18 },
+  { left: 45, top: 15, delay: 1, duration: 13 },
+  { left: 62, top: 50, delay: 4, duration: 20 },
+  { left: 78, top: 25, delay: 3, duration: 16 },
+  { left: 90, top: 60, delay: 5, duration: 19 },
+  { left: 15, top: 75, delay: 0.5, duration: 14 },
+  { left: 33, top: 82, delay: 2.5, duration: 17 },
+  { left: 55, top: 68, delay: 1.5, duration: 15 },
+  { left: 70, top: 85, delay: 3.5, duration: 18 },
+];
 
 const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
-  const [formData, setFormData] = useState({
-    loginIdentifier: '',
-    password: '',
-  });
-
+  const [formData, setFormData] = useState({ loginIdentifier: '', password: '' });
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    if (errors[e.target.name]) {
-      setErrors({ ...errors, [e.target.name]: '' });
-    }
+    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: '' });
+    if (apiError) setApiError('');
   };
 
   const validate = () => {
-    const tempErrors = {};
-    if (!formData.loginIdentifier.trim()) {
-      tempErrors.loginIdentifier = 'Email or phone number is required';
-    }
-    if (!formData.password) {
-      tempErrors.password = 'Password is required';
-    }
-    setErrors(tempErrors);
-    return Object.keys(tempErrors).length === 0;
+    const errs = {};
+    if (!formData.loginIdentifier.trim()) errs.loginIdentifier = 'Email or phone number is required';
+    if (!formData.password)               errs.password = 'Password is required';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
-
-  const { showToast } = useToast();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setApiError('');
     if (!validate()) return;
-
     setSubmitting(true);
     const res = await login(formData.loginIdentifier, formData.password);
     setSubmitting(false);
-
     if (res.success) {
-      showToast('Login successful! Welcoming you back.', 'success');
+      showToast('Welcome back! Login successful.', 'success');
       navigate('/dashboard');
     } else {
-      const errMsg = res.message || 'Invalid credentials';
-      setApiError(errMsg);
-      showToast(errMsg, 'error');
+      const msg = res.message || 'Invalid credentials. Please try again.';
+      setApiError(msg);
+      showToast(msg, 'error');
     }
   };
 
   return (
     <div className="auth-layout">
-      {/* Background Visuals */}
+      {/* Background glow elements */}
       <div className="auth-glow-1"></div>
       <div className="auth-glow-2"></div>
       <div className="auth-bg-grid"></div>
-      
-      {/* Floating graph lines */}
-      <div className="auth-bg-graph">
-        <svg viewBox="0 0 1000 100" preserveAspectRatio="none">
-          <path 
-            className="auth-graph-line" 
-            d="M0,80 Q100,40 200,60 T400,20 T600,70 T800,30 T1000,50" 
-          />
-        </svg>
-      </div>
 
-      {/* Floating gold particles */}
-      <div className="auth-particle" style={{ left: '10%', top: '20%', animationDelay: '0s', animationDuration: '12s' }}></div>
-      <div className="auth-particle" style={{ left: '30%', top: '45%', animationDelay: '2s', animationDuration: '18s' }}></div>
-      <div className="auth-particle" style={{ left: '60%', top: '15%', animationDelay: '1s', animationDuration: '14s' }}></div>
-      <div className="auth-particle" style={{ left: '85%', top: '35%', animationDelay: '4s', animationDuration: '16s' }}></div>
+      {/* Floating particles */}
+      {PARTICLES.map((p, i) => (
+        <div
+          key={i}
+          className="auth-particle"
+          style={{
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        />
+      ))}
 
-      <div className="w-100 auth-page-transition d-flex flex-column align-items-center" style={{ maxWidth: '440px', zIndex: 10 }}>
+      <div className="auth-page-transition">
+        {/* Top Branding Section */}
         <div className="text-center mb-4">
-          <BrandLogo width={64} height={64} className="mb-2" />
-          <h2 className="fw-bold mt-2 text-white" style={{ letterSpacing: '-0.5px' }}>GrowStar</h2>
-          <p className="text-muted small fw-medium">Grow Smarter. Invest Stronger.</p>
+          <div className="d-inline-flex align-items-center gap-2">
+            <BrandLogo width={40} height={40} />
+            <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
+              GrowStar
+            </span>
+          </div>
         </div>
 
-        <Card className="auth-card" title="Client Portal Sign In">
-          {apiError && <div className="alert alert-danger small py-2 bg-danger-subtle border-danger text-danger-emphasis">{apiError}</div>}
+        {/* Centered Glassmorphic Card */}
+        <div className="auth-card-dark">
+          {/* Card Header */}
+          <div className="text-center mb-4">
+            <h3 style={{ fontSize: '1.375rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+              Welcome back
+            </h3>
+            <p className="text-muted mt-1 mb-0" style={{ fontSize: '0.8125rem' }}>
+              Sign in to access your investment portfolio
+            </p>
+          </div>
 
-          <form onSubmit={handleSubmit}>
+          {/* Error Alert */}
+          {apiError && (
+            <div className="alert alert-danger d-flex align-items-center gap-2 mb-4 p-3 border-0">
+              <i className="bi bi-exclamation-circle-fill flex-shrink-0" style={{ fontSize: '1.1rem' }}></i>
+              <span>{apiError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate>
+            {/* Email / Phone Field */}
             <div className="mb-3">
-              <label htmlFor="loginIdentifier" className="form-label">
-                Email Address or Phone
-              </label>
-              <input
-                type="text"
-                id="loginIdentifier"
-                name="loginIdentifier"
-                className={`form-control ${errors.loginIdentifier ? 'is-invalid' : ''}`}
-                placeholder="e.g. user@email.com or 9876543210"
-                value={formData.loginIdentifier}
-                onChange={handleChange}
-              />
+              <label htmlFor="loginIdentifier" className="form-label">Email or Phone</label>
+              <div className="input-icon-wrapper">
+                <i className="bi bi-person input-icon"></i>
+                <input
+                  type="text"
+                  id="loginIdentifier"
+                  name="loginIdentifier"
+                  className={`form-control ${errors.loginIdentifier ? 'is-invalid' : ''}`}
+                  placeholder="user@email.com or 9876543210"
+                  value={formData.loginIdentifier}
+                  onChange={handleChange}
+                  autoComplete="username"
+                />
+              </div>
               {errors.loginIdentifier && (
-                <div className="invalid-feedback">{errors.loginIdentifier}</div>
+                <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                  {errors.loginIdentifier}
+                </div>
               )}
             </div>
 
-            <div className="mb-3">
-              <div className="d-flex justify-content-between mb-1">
-                <label htmlFor="password" className="form-label mb-0">
-                  Password
-                </label>
+            {/* Password Field */}
+            <div className="mb-4">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <label htmlFor="password" className="form-label mb-0">Password</label>
                 <Link
                   to="/forgot-password"
-                  className="small text-decoration-none fw-semibold"
-                  style={{ color: '#D4AF37' }}
+                  style={{ fontSize: '0.8125rem', color: '#d4af37', textDecoration: 'none', fontWeight: 500 }}
                 >
-                  Forgot Password?
+                  Forgot password?
                 </Link>
               </div>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                placeholder="Enter password"
-                value={formData.password}
-                onChange={handleChange}
-              />
-              {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+              <div className="input-icon-wrapper has-right-icon">
+                <i className="bi bi-lock input-icon"></i>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="input-icon-right"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                </button>
+              </div>
+              {errors.password && (
+                <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                  {errors.password}
+                </div>
+              )}
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3 d-flex align-items-center justify-content-center" disabled={submitting}>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="btn btn-primary w-100"
+              disabled={submitting}
+            >
               {submitting ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Authenticating...
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(3, 7, 18, 0.2)',
+                      borderTopColor: '#030712',
+                      borderRadius: '50%',
+                      animation: 'spin 0.7s linear infinite',
+                      display: 'inline-block'
+                    }}
+                  />
+                  Signing in...
                 </>
-              ) : 'Sign In'}
+              ) : (
+                <>
+                  <i className="bi bi-box-arrow-in-right"></i>
+                  Sign In
+                </>
+              )}
             </button>
           </form>
-          <hr className="my-4" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
-          <div className="text-center">
-            <span className="text-muted small d-block mb-2">New to GrowStar?</span>
-            <Link to="/signup" className="btn btn-outline-primary w-100 py-2.5">
-              Create Account
-            </Link>
+
+          {/* New to GrowStar Signup Divider */}
+          <div className="d-flex align-items-center gap-3 my-4">
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.08)' }}></div>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(148, 163, 184, 0.5)', fontWeight: 500 }}>New to GrowStar?</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.08)' }}></div>
           </div>
 
-          {/* Trust Badge Indicator */}
-          <div className="text-center mt-4">
-            <div className="auth-trust-badge">
-              <i className="bi bi-shield-fill-check"></i>
-              <span>Secure Client Portal | 256-bit SSL</span>
-            </div>
-          </div>
-        </Card>
+          {/* Create Account Button */}
+          <Link
+            to="/signup"
+            className="btn btn-outline-primary w-100 text-center"
+            style={{ fontWeight: 600 }}
+          >
+            Create Account
+          </Link>
+        </div>
       </div>
     </div>
   );

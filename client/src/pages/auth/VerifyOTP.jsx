@@ -2,15 +2,26 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authService from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
-import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
+
+const PARTICLES = [
+  { left: 8, top: 20, delay: 0, duration: 15 },
+  { left: 25, top: 40, delay: 2, duration: 18 },
+  { left: 45, top: 15, delay: 1, duration: 13 },
+  { left: 62, top: 50, delay: 4, duration: 20 },
+  { left: 78, top: 25, delay: 3, duration: 16 },
+  { left: 90, top: 60, delay: 5, duration: 19 },
+  { left: 15, top: 75, delay: 0.5, duration: 14 },
+  { left: 33, top: 82, delay: 2.5, duration: 17 },
+  { left: 55, top: 68, delay: 1.5, duration: 15 },
+  { left: 70, top: 85, delay: 3.5, duration: 18 },
+];
 
 const VerifyOTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
 
-  // Get email from route state if redirecting from somewhere, otherwise empty
   const [email, setEmail] = useState(location.state?.email || '');
   const [otp, setOtp] = useState('');
   const [errors, setErrors] = useState({});
@@ -76,54 +87,86 @@ const VerifyOTP = () => {
 
   return (
     <div className="auth-layout">
-      {/* Background Visuals */}
+      {/* Background glow elements */}
       <div className="auth-glow-1"></div>
       <div className="auth-glow-2"></div>
       <div className="auth-bg-grid"></div>
-      
-      {/* Floating graph lines */}
-      <div className="auth-bg-graph">
-        <svg viewBox="0 0 1000 100" preserveAspectRatio="none">
-          <path 
-            className="auth-graph-line" 
-            d="M0,80 Q100,40 200,60 T400,20 T600,70 T800,30 T1000,50" 
-          />
-        </svg>
-      </div>
 
-      {/* Floating gold particles */}
-      <div className="auth-particle" style={{ left: '10%', top: '20%', animationDelay: '0s', animationDuration: '12s' }}></div>
-      <div className="auth-particle" style={{ left: '30%', top: '45%', animationDelay: '2s', animationDuration: '18s' }}></div>
-      <div className="auth-particle" style={{ left: '60%', top: '15%', animationDelay: '1s', animationDuration: '14s' }}></div>
-      <div className="auth-particle" style={{ left: '85%', top: '35%', animationDelay: '4s', animationDuration: '16s' }}></div>
+      {/* Floating particles */}
+      {PARTICLES.map((p, i) => (
+        <div
+          key={i}
+          className="auth-particle"
+          style={{
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        />
+      ))}
 
-      <div className="w-100 auth-page-transition d-flex flex-column align-items-center" style={{ maxWidth: '440px', zIndex: 10 }}>
+      <div className="auth-page-transition" style={{ width: '100%', maxWidth: '440px', zIndex: 10 }}>
+        {/* Top Branding Section */}
         <div className="text-center mb-4">
-          <BrandLogo width={64} height={64} className="mb-2" />
-          <h2 className="fw-bold mt-2 text-white" style={{ letterSpacing: '-0.5px' }}>OTP Verification</h2>
-          <p className="text-muted small fw-medium">Verify your email address</p>
+          <div className="d-inline-flex align-items-center gap-2">
+            <BrandLogo width={40} height={40} />
+            <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
+              GrowStar
+            </span>
+          </div>
         </div>
 
-        <Card className="auth-card" title="Enter 6-Digit OTP">
-          {apiError && <div className="alert alert-danger small py-2 bg-danger-subtle border-danger text-danger-emphasis">{apiError}</div>}
-          {apiSuccess && <div className="alert alert-success small py-2 bg-success-subtle border-success text-success-emphasis">{apiSuccess}</div>}
+        {/* Centered Glassmorphic Card */}
+        <div className="auth-card-dark w-100">
+          <div className="mb-4 text-center">
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+              OTP Verification
+            </h3>
+            <p className="text-muted mt-1 mb-0" style={{ fontSize: '0.8125rem' }}>
+              Verify your email address
+            </p>
+          </div>
+
+          {apiError && (
+            <div className="alert alert-danger d-flex align-items-center gap-2 mb-4 p-3 border-0">
+              <i className="bi bi-exclamation-circle-fill flex-shrink-0" style={{ fontSize: '1.1rem' }}></i>
+              <span>{apiError}</span>
+            </div>
+          )}
+
+          {apiSuccess && (
+            <div className="alert alert-success d-flex align-items-center gap-2 mb-4 p-3 border-0">
+              <i className="bi bi-check-circle-fill flex-shrink-0" style={{ fontSize: '1.1rem' }}></i>
+              <span>{apiSuccess}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
+            {/* Email Field */}
             <div className="mb-3">
               <label className="form-label">Email Address</label>
-              <input
-                type="email"
-                className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setErrors({});
-                }}
-                placeholder="name@email.com"
-              />
-              {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+              <div className="input-icon-wrapper">
+                <i className="bi bi-envelope input-icon"></i>
+                <input
+                  type="email"
+                  className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErrors({});
+                  }}
+                  placeholder="name@email.com"
+                />
+              </div>
+              {errors.email && (
+                <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                  {errors.email}
+                </div>
+              )}
             </div>
 
+            {/* OTP Field */}
             <div className="mb-3">
               <label className="form-label">Verification Code (OTP)</label>
               <input
@@ -136,42 +179,66 @@ const VerifyOTP = () => {
                 }}
                 maxLength="6"
                 placeholder="• • • • • •"
-                style={{ letterSpacing: '0.3em', fontSize: '1.2rem' }}
+                style={{ letterSpacing: '0.4em', fontSize: '1.2rem' }}
               />
-              {errors.otp && <div className="invalid-feedback">{errors.otp}</div>}
+              {errors.otp && (
+                <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                  {errors.otp}
+                </div>
+              )}
             </div>
 
-            <button type="submit" className="btn btn-primary w-100 py-2.5 mt-3 d-flex align-items-center justify-content-center" disabled={submitting}>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="btn btn-primary w-100 mt-2"
+              disabled={submitting}
+            >
               {submitting ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(3, 7, 18, 0.2)',
+                      borderTopColor: '#030712',
+                      borderRadius: '50%',
+                      animation: 'spin 0.7s linear infinite',
+                      display: 'inline-block'
+                    }}
+                  />
                   Verifying...
                 </>
-              ) : 'Verify OTP'}
+              ) : (
+                'Verify OTP'
+              )}
             </button>
           </form>
 
+          {/* Resend Button */}
           <div className="text-center mt-3">
-            <button type="button" className="btn btn-link text-decoration-none btn-sm" style={{ color: '#D4AF37' }} onClick={handleResend}>
+            <button
+              type="button"
+              className="btn btn-link text-decoration-none btn-sm"
+              style={{ color: '#d4af37', fontWeight: 600 }}
+              onClick={handleResend}
+            >
               Resend OTP code
             </button>
           </div>
 
           <hr className="my-4" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
+          
           <div className="text-center">
-            <Link to="/login" className="text-muted small fw-semibold text-decoration-none">
+            <Link
+              to="/login"
+              style={{ color: '#d4af37', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600 }}
+            >
+              <i className="bi bi-arrow-left"></i>
               Back to Login
             </Link>
           </div>
-
-          {/* Trust Badge Indicator */}
-          <div className="text-center mt-4">
-            <div className="auth-trust-badge">
-              <i className="bi bi-shield-fill-check"></i>
-              <span>Secure Verification | 256-bit SSL</span>
-            </div>
-          </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

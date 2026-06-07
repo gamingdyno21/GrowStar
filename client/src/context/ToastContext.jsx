@@ -10,13 +10,28 @@ export const useToast = () => {
   return context;
 };
 
+const ICONS = {
+  success: 'bi-check-lg',
+  error:   'bi-exclamation-triangle-fill',
+  danger:  'bi-exclamation-triangle-fill',
+  warning: 'bi-exclamation-circle-fill',
+  info:    'bi-info-circle-fill',
+};
+
+const TITLES = {
+  success: 'Success',
+  error:   'Error',
+  danger:  'Error',
+  warning: 'Warning',
+  info:    'Notice',
+};
+
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = useCallback((message, type = 'info', duration = 4000) => {
+  const showToast = useCallback((message, type = 'info', duration = 4500) => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
-
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, duration);
@@ -33,25 +48,40 @@ export const ToastProvider = ({ children }) => {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`growstar-toast growstar-toast-${toast.type} d-flex align-items-center justify-content-between`}
+            className={`growstar-toast growstar-toast-${toast.type}`}
             role="alert"
           >
-            <div className="d-flex align-items-center">
-              <i className={`bi ${
-                toast.type === 'success' ? 'bi-check-circle-fill' :
-                toast.type === 'error' || toast.type === 'danger' ? 'bi-exclamation-triangle-fill' :
-                toast.type === 'warning' ? 'bi-exclamation-circle-fill' :
-                'bi-info-circle-fill'
-              } me-2.5 fs-5`}></i>
-              <span className="toast-message text-white small fw-medium">{toast.message}</span>
+            {/* Icon chip */}
+            <div className="growstar-toast-icon">
+              <i className={`bi ${ICONS[toast.type] || ICONS.info}`}></i>
             </div>
+
+            {/* Text */}
+            <div className="growstar-toast-body">
+              <div className="toast-title">{TITLES[toast.type] || 'Notice'}</div>
+              <div className="toast-message">{toast.message}</div>
+            </div>
+
+            {/* Dismiss */}
             <button
               type="button"
-              className="btn-close btn-close-white ms-3"
               onClick={() => removeToast(toast.id)}
               aria-label="Close"
-              style={{ fontSize: '0.75rem', opacity: 0.7 }}
-            ></button>
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#94a3b8',
+                padding: '0.25rem',
+                fontSize: '0.875rem',
+                lineHeight: 1,
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
           </div>
         ))}
       </div>

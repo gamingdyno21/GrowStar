@@ -2,45 +2,49 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
-import Card from '../../components/common/Card';
 import BrandLogo from '../../components/common/BrandLogo';
 import { formatPAN, formatAadhaar, formatPhone } from '../../utils/helpers';
 import { REGEX_PATTERNS } from '../../utils/constants';
-const RESEND_COOLDOWN = 60; // seconds
 
-// ─── OTP Status Message ───────────────────────────────────────────────────────
+const RESEND_COOLDOWN = 60;
+
+const PARTICLES = [
+  { left: 8, top: 20, delay: 0, duration: 15 },
+  { left: 25, top: 40, delay: 2, duration: 18 },
+  { left: 45, top: 15, delay: 1, duration: 13 },
+  { left: 62, top: 50, delay: 4, duration: 20 },
+  { left: 78, top: 25, delay: 3, duration: 16 },
+  { left: 90, top: 60, delay: 5, duration: 19 },
+  { left: 15, top: 75, delay: 0.5, duration: 14 },
+  { left: 33, top: 82, delay: 2.5, duration: 17 },
+  { left: 55, top: 68, delay: 1.5, duration: 15 },
+  { left: 70, top: 85, delay: 3.5, duration: 18 },
+];
+
+// ── OTP Status Message ──────────────────────────────────────
 const OtpStatusMessage = ({ status }) => {
   if (!status?.message) return null;
   const map = {
-    success: { cls: 'alert-success', icon: 'bi-check-circle-fill'      },
-    error:   { cls: 'alert-danger',  icon: 'bi-exclamation-circle-fill' },
-    info:    { cls: 'alert-info',    icon: 'bi-info-circle-fill'        },
+    success: { bg: 'rgba(52, 211, 153, 0.1)', border: 'rgba(52, 211, 153, 0.2)', color: '#34d399', icon: 'bi-check-circle-fill' },
+    error:   { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.2)', color: '#fca5a5', icon: 'bi-exclamation-circle-fill' },
+    info:    { bg: 'rgba(59, 130, 246, 0.1)',  border: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd', icon: 'bi-info-circle-fill' },
   };
-  const { cls, icon } = map[status.type] || { cls: 'alert-secondary', icon: 'bi-info-circle' };
+  const s = map[status.type] || map.info;
   return (
-    <div className={`alert ${cls} py-1 px-2 d-flex align-items-center gap-2 mb-0 mt-2`}
-         style={{ fontSize: '0.75rem', borderRadius: '6px' }}>
-      <i className={`bi ${icon}`} />
+    <div style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.color, borderRadius: '8px', padding: '0.625rem 0.75rem', fontSize: '0.78rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.625rem' }}>
+      <i className={`bi ${s.icon} flex-shrink-0`}></i>
       <span>{status.message}</span>
     </div>
   );
 };
 
-// ─── Verified / Pending Badge ─────────────────────────────────────────────────
-const VerifBadge = ({ verified }) =>
-  verified
-    ? <span className="badge bg-success"><i className="bi bi-patch-check-fill me-1" />Verified</span>
-    : <span className="badge bg-warning text-dark"><i className="bi bi-clock me-1" />Pending</span>;
-
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Signup Component ────────────────────────────────────────
 const Signup = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // ── Stepper ──────────────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState(1);
 
-  // ── Form Data ────────────────────────────────────────────────────────────────
   const [formData, setFormData] = useState({
     fullName: '', email: '', phoneNumber: '', address: '',
     panNumber: '', aadhaarNumber: '',
@@ -48,46 +52,31 @@ const Signup = () => {
     password: '', confirmPassword: '',
   });
 
-  // ── Verification Flags ───────────────────────────────────────────────────────
-  const [emailVerified, setEmailVerified] = useState(() => {
-    return localStorage.getItem('emailVerified') === 'true';
-  });
-  const [phoneVerified, setPhoneVerified] = useState(() => {
-    return localStorage.getItem('mobileValidated') === 'true';
-  });
-
-  // ── Per-field OTP Status Messages ────────────────────────────────────────────
+  const [emailVerified, setEmailVerified] = useState(() => localStorage.getItem('emailVerified') === 'true');
+  const [phoneVerified, setPhoneVerified] = useState(() => localStorage.getItem('mobileValidated') === 'true');
   const [emailOtpStatus, setEmailOtpStatus] = useState({ type: '', message: '' });
-
-  // ── Resend Cooldown Timers ───────────────────────────────────────────────────
   const [emailCooldown, setEmailCooldown] = useState(0);
   const emailTimerRef = useRef(null);
 
-  // ── Loading States ───────────────────────────────────────────────────────────
   const [generatingOtp,  setGeneratingOtp]  = useState(false);
   const [verifyingEmail, setVerifyingEmail] = useState(false);
   const [resendingEmail, setResendingEmail] = useState(false);
   const [submitting,     setSubmitting]     = useState(false);
-
-  // ── Page-level messages ──────────────────────────────────────────────────────
   const [errors,   setErrors]   = useState({});
   const [apiError, setApiError] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
-  // ── Instant Phone Validation ─────────────────────────────────────────────────
   const isPhoneValid = /^[6-9]\d{9}$/.test(formData.phoneNumber);
   useEffect(() => {
     setPhoneVerified(isPhoneValid);
     localStorage.setItem('mobileValidated', isPhoneValid ? 'true' : 'false');
   }, [formData.phoneNumber, isPhoneValid]);
 
-  // ── Cleanup timers on unmount ─────────────────────────────────────────────────
   useEffect(() => {
-    return () => {
-      if (emailTimerRef.current) clearInterval(emailTimerRef.current);
-    };
+    return () => { if (emailTimerRef.current) clearInterval(emailTimerRef.current); };
   }, []);
 
-  // ─── Cooldown timer ──────────────────────────────────────────────────────────
   const startCooldown = () => {
     if (emailTimerRef.current) clearInterval(emailTimerRef.current);
     setEmailCooldown(RESEND_COOLDOWN);
@@ -99,7 +88,6 @@ const Signup = () => {
     }, 1000);
   };
 
-  // ─── Form field change ───────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
     let v = value;
@@ -115,7 +103,6 @@ const Signup = () => {
     if (errors[name]) setErrors({ ...errors, [name]: '' });
   };
 
-  // ─── Step 1 validation ───────────────────────────────────────────────────────
   const validateDetails = () => {
     const errs = {};
     if (!formData.fullName.trim())       errs.fullName      = 'Full name is required';
@@ -132,7 +119,6 @@ const Signup = () => {
     return Object.keys(errs).length === 0;
   };
 
-  // ─── Generate OTPs: Email → backend ────────────────────────
   const handleGenerateOTPs = async () => {
     setApiError('');
     if (!validateDetails()) {
@@ -142,10 +128,7 @@ const Signup = () => {
     }
     setGeneratingOtp(true);
     setEmailOtpStatus({ type: '', message: '' });
-
     let emailSent = false;
-
-    // ── Email OTP via backend (Resend Transactional Email) ──
     try {
       const resEmail = await authService.resendOTP(formData.email, null);
       if (resEmail?.success) {
@@ -162,9 +145,7 @@ const Signup = () => {
       setEmailOtpStatus({ type: 'error', message: errMsg });
       showToast(errMsg, 'error');
     }
-
     setGeneratingOtp(false);
-
     if (emailSent) {
       setCurrentStep(2);
     } else {
@@ -172,7 +153,6 @@ const Signup = () => {
     }
   };
 
-  // ─── Resend Email OTP ─────────────────────────────────────────────────────────
   const handleResendEmailOtp = async () => {
     if (emailCooldown > 0 || resendingEmail || emailVerified) return;
     setResendingEmail(true);
@@ -186,8 +166,8 @@ const Signup = () => {
         showToast('Verification OTP resent successfully.', 'success');
         startCooldown();
       } else {
-        setEmailOtpStatus({ type: 'error', message: 'Failed to resend OTP. Please try again.' });
-        showToast('Failed to resend OTP. Please try again.', 'error');
+        setEmailOtpStatus({ type: 'error', message: 'Failed to resend OTP.' });
+        showToast('Failed to resend OTP.', 'error');
       }
     } catch (err) {
       const errMsg = err.response?.data?.message || 'Failed to resend email OTP.';
@@ -198,58 +178,44 @@ const Signup = () => {
     }
   };
 
-  // ─── Verify Email OTP (backend) ───────────────────────────────────────────────
   const handleVerifyEmailOtp = async () => {
     if (!formData.emailOtp.trim()) {
       setEmailOtpStatus({ type: 'error', message: 'Please enter the OTP from your email.' });
-      showToast('Please enter the OTP.', 'warning');
       return;
     }
     setVerifyingEmail(true);
     setEmailOtpStatus({ type: '', message: '' });
-    setEmailVerified(false); // Reset verification state
+    setEmailVerified(false);
     localStorage.setItem('emailVerified', 'false');
     try {
       const res = await authService.verifyOTP(formData.email, formData.emailOtp.trim());
-      console.log("[DEBUG] Email verification response:", res);
       if (res?.success) {
         setEmailVerified(true);
         localStorage.setItem('emailVerified', 'true');
         setEmailOtpStatus({ type: 'success', message: 'Email address verified successfully.' });
-        showToast('Email address verified successfully!', 'success');
+        showToast('Email verified!', 'success');
       } else {
-        setEmailVerified(false); // Clear on failure
-        localStorage.setItem('emailVerified', 'false');
         setEmailOtpStatus({ type: 'error', message: 'Invalid OTP. Please check and try again.' });
-        showToast('Invalid OTP. Please check and try again.', 'error');
+        showToast('Invalid OTP.', 'error');
       }
     } catch (err) {
-      console.error("[DEBUG] Email verification failed:", err);
-      setEmailVerified(false); // Clear on exception
-      localStorage.setItem('emailVerified', 'false');
       const msg = err.response?.data?.message || '';
-      const detailedMsg = msg.toLowerCase().includes('expired')
+      const detail = msg.toLowerCase().includes('expired')
         ? 'OTP has expired. Click "Resend OTP" to get a new one.'
         : 'Invalid OTP. Please check and try again.';
-      setEmailOtpStatus({
-        type: 'error',
-        message: detailedMsg,
-      });
-      showToast(detailedMsg, 'error');
+      setEmailOtpStatus({ type: 'error', message: detail });
+      showToast(detail, 'error');
     } finally {
       setVerifyingEmail(false);
     }
   };
 
-  // ─── Proceed to Password ─────────────────────────────────────────────────────
   const handleProceedToPasswords = () => {
-    const isEmailVerifiedStored = localStorage.getItem('emailVerified') === 'true';
-    const isMobileValidatedStored = localStorage.getItem('mobileValidated') === 'true';
-
-    setEmailVerified(isEmailVerifiedStored);
-    setPhoneVerified(isMobileValidatedStored);
-
-    if (isEmailVerifiedStored && isMobileValidatedStored) {
+    const emailOk  = localStorage.getItem('emailVerified') === 'true';
+    const mobileOk = localStorage.getItem('mobileValidated') === 'true';
+    setEmailVerified(emailOk);
+    setPhoneVerified(mobileOk);
+    if (emailOk && mobileOk) {
       setCurrentStep(3);
       setApiError('');
     } else {
@@ -257,7 +223,6 @@ const Signup = () => {
     }
   };
 
-  // ─── Final Registration ──────────────────────────────────────────────────────
   const handleSubmitRegistration = async (e) => {
     e.preventDefault();
     setApiError('');
@@ -267,409 +232,545 @@ const Signup = () => {
     if (formData.password !== formData.confirmPassword)  errs.confirmPassword = 'Passwords do not match';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    const isEmailVerifiedStored = localStorage.getItem('emailVerified') === 'true';
-    const isMobileValidatedStored = localStorage.getItem('mobileValidated') === 'true';
+    const emailOk  = localStorage.getItem('emailVerified') === 'true';
+    const mobileOk = localStorage.getItem('mobileValidated') === 'true';
 
     const payload = {
-      fullName:        formData.fullName,
-      email:           formData.email,
-      phone:           formData.phoneNumber,
-      phoneNumber:     formData.phoneNumber,
-      address:         formData.address,
-      panNumber:       formData.panNumber,
-      aadhaarNumber:   formData.aadhaarNumber,
-      password:        formData.password,
-      confirmPassword: formData.confirmPassword,
-      emailOtp:        formData.emailOtp,
-      emailVerified:   isEmailVerifiedStored,
-      mobileValidated: isMobileValidatedStored,
+      fullName: formData.fullName, email: formData.email,
+      phone: formData.phoneNumber, phoneNumber: formData.phoneNumber,
+      address: formData.address, panNumber: formData.panNumber,
+      aadhaarNumber: formData.aadhaarNumber, password: formData.password,
+      confirmPassword: formData.confirmPassword, emailOtp: formData.emailOtp,
+      emailVerified: emailOk, mobileValidated: mobileOk,
     };
-
-    console.log("Final signup payload", payload);
-    console.log("Submitting phone:", formData.phoneNumber);
 
     setSubmitting(true);
     try {
       const res = await authService.signup(payload);
-
       if (res?.success) {
         localStorage.removeItem('emailVerified');
         localStorage.removeItem('mobileValidated');
-        showToast('Account created successfully! Welcome to GrowStar.', 'success');
+        showToast('Account created! Welcome to GrowStar.', 'success');
         setCurrentStep(4);
-        setTimeout(() => navigate('/login'), 3000);
+        setTimeout(() => navigate('/login'), 3500);
       } else {
         const msg = res?.message || 'Registration failed. Please try again.';
         setApiError(msg);
         showToast(msg, 'error');
       }
     } catch (err) {
-      const errMsg = err.response?.data?.message || 'Error occurred during registration.';
-      setApiError(errMsg);
-      showToast(errMsg, 'error');
+      const msg = err.response?.data?.message || 'Error during registration.';
+      setApiError(msg);
+      showToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ─── Stepper labels ──────────────────────────────────────────────────────────
-  const STEPS = ['Client Details', 'OTP Verification', 'Password Setup', 'Account Created'];
+  const STEPS = [
+    { label: 'Details',      icon: 'bi-person' },
+    { label: 'OTP Verify',   icon: 'bi-shield-check' },
+    { label: 'Password',     icon: 'bi-lock' },
+    { label: 'Done',         icon: 'bi-check-lg' },
+  ];
 
-  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="auth-layout">
-      {/* Background Visuals */}
+      {/* Background glow orbs */}
       <div className="auth-glow-1"></div>
       <div className="auth-glow-2"></div>
       <div className="auth-bg-grid"></div>
-      
-      {/* Floating graph lines */}
-      <div className="auth-bg-graph">
-        <svg viewBox="0 0 1000 100" preserveAspectRatio="none">
-          <path 
-            className="auth-graph-line" 
-            d="M0,80 Q100,40 200,60 T400,20 T600,70 T800,30 T1000,50" 
-          />
-        </svg>
-      </div>
 
-      {/* Floating gold particles */}
-      <div className="auth-particle" style={{ left: '10%', top: '20%', animationDelay: '0s', animationDuration: '12s' }}></div>
-      <div className="auth-particle" style={{ left: '30%', top: '45%', animationDelay: '2s', animationDuration: '18s' }}></div>
-      <div className="auth-particle" style={{ left: '60%', top: '15%', animationDelay: '1s', animationDuration: '14s' }}></div>
-      <div className="auth-particle" style={{ left: '85%', top: '35%', animationDelay: '4s', animationDuration: '16s' }}></div>
+      {/* Floating particles */}
+      {PARTICLES.map((p, i) => (
+        <div
+          key={i}
+          className="auth-particle"
+          style={{
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+          }}
+        />
+      ))}
 
-      <div className="w-100 auth-page-transition d-flex flex-column align-items-center" style={{ maxWidth: '660px', zIndex: 10 }}>
-
+      <div className="auth-page-transition">
         {/* Brand Header */}
         <div className="text-center mb-4">
-          <BrandLogo width={64} height={64} className="mb-2" />
-          <h2 className="fw-bold mt-2 text-white" style={{ letterSpacing: '-0.5px' }}>GrowStar</h2>
-          <p className="text-muted small fw-medium">Grow Smarter. Invest Stronger.</p>
-        </div>
-
-        {/* ── Progress Stepper ── */}
-        <div className="finance-card auth-card p-4 mb-4 text-center w-100" style={{ maxWidth: '660px' }}>
-          <div className="signup-stepper">
-            {STEPS.map((label, idx) => {
-              const n = idx + 1;
-              const done = currentStep > n, active = currentStep === n;
-              return (
-                <div key={label}
-                  className="text-center position-relative d-flex flex-column align-items-center"
-                  style={{ zIndex: 1, width: '80px' }}>
-                  <div className={`step-indicator ${done ? 'completed' : active ? 'active' : ''}`}>
-                    {done ? <i className="bi bi-check-lg" /> : n}
-                  </div>
-                  <span className="mt-2 text-muted fw-semibold text-center"
-                    style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.4px', lineHeight: 1.3 }}>
-                    {label}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="d-inline-flex align-items-center gap-2">
+            <BrandLogo width={40} height={40} />
+            <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', letterSpacing: '-0.02em' }}>
+              GrowStar
+            </span>
           </div>
         </div>
 
-        <Card className="auth-card" title={currentStep === 4 ? 'Registration Successful' : 'New Client Registration'}>
-          {apiError && <div className="alert alert-danger small py-2 mb-3 bg-danger-subtle border-danger text-danger-emphasis">{apiError}</div>}
+        {/* Main Centered Glassmorphic Wizard Card */}
+        <div className="auth-card-dark signup-card">
+          {/* Integrated Stepper */}
+          {currentStep !== 4 && (
+            <>
+              <div className="signup-stepper mb-4">
+                {STEPS.map((s, idx) => {
+                  const n = idx + 1;
+                  const done   = currentStep > n;
+                  const active = currentStep === n;
+                  return (
+                    <div key={s.label} className={`step-item ${done ? 'completed' : active ? 'active' : ''}`}>
+                      <div className="step-circle">
+                        {done ? <i className="bi bi-check-lg"></i> : active ? <i className={`bi ${s.icon}`}></i> : n}
+                      </div>
+                      <span className="step-label">{s.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <hr className="mt-0 mb-4" />
+            </>
+          )}
 
-          {/* ════════════ STEP 1: Client Details ════════════ */}
+          {/* API Error Alert */}
+          {apiError && (
+            <div className="alert alert-danger d-flex align-items-center gap-2 mb-4 p-3 border-0">
+              <i className="bi bi-exclamation-circle-fill flex-shrink-0" style={{ fontSize: '1.1rem' }}></i>
+              <span>{apiError}</span>
+            </div>
+          )}
+
+          {/* ══ STEP 1: Client Details ══ */}
           {currentStep === 1 && (
             <div className="animate-fade">
-              <div className="mb-3">
-                <label className="form-label">Full Name <span className="text-danger">*</span></label>
-                <input type="text" name="fullName"
-                  className={`form-control ${errors.fullName ? 'is-invalid' : ''}`}
-                  placeholder="As per official documents"
-                  value={formData.fullName} onChange={handleChange} />
-                {errors.fullName && <div className="invalid-feedback">{errors.fullName}</div>}
-              </div>
+              <h5 style={{ fontFamily: "'Outfit', sans-serif", color: '#ffffff', fontWeight: 700, marginBottom: '1.25rem' }}>
+                <i className="bi bi-person-circle me-2" style={{ color: '#D4AF37' }}></i>
+                Personal Information
+              </h5>
 
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Email Address <span className="text-danger">*</span></label>
-                  <input type="email" name="email"
-                    className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                    placeholder="e.g. name@email.com"
-                    value={formData.email} onChange={handleChange} />
-                  {errors.email && <div className="invalid-feedback">{errors.email}</div>}
+              <div className="mb-3">
+                <label className="form-label">Full Name <span style={{ color: '#f87171' }}>*</span></label>
+                <div className="input-icon-wrapper">
+                  <i className="bi bi-person input-icon"></i>
+                  <input
+                    type="text"
+                    name="fullName"
+                    className={`form-control ${errors.fullName ? 'is-invalid' : ''}`}
+                    placeholder="As per official documents"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                  />
                 </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Mobile Number <span className="text-danger">*</span></label>
-                  <div className="input-group">
-                    <span className="input-group-text text-secondary small bg-dark-subtle border-secondary border-opacity-25" style={{ color: '#94a3b8 !important' }}>+91</span>
-                    <input type="text" name="phoneNumber"
-                      className={`form-control ${errors.phoneNumber ? 'is-invalid' : isPhoneValid ? 'is-valid' : ''}`}
-                      placeholder="10-digit number"
-                      value={formData.phoneNumber} onChange={handleChange} />
-                    {isPhoneValid && (
-                      <div className="valid-feedback text-success small w-100 mt-1" style={{ display: 'block' }}>
-                        ✓ Valid Indian mobile number
-                      </div>
-                    )}
-                    {errors.phoneNumber && <div className="invalid-feedback">{errors.phoneNumber}</div>}
+                {errors.fullName && (
+                  <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                    {errors.fullName}
                   </div>
+                )}
+              </div>
+
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <label className="form-label">Email Address <span style={{ color: '#f87171' }}>*</span></label>
+                  <div className="input-icon-wrapper">
+                    <i className="bi bi-envelope input-icon"></i>
+                    <input
+                      type="email"
+                      name="email"
+                      className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                      placeholder="name@email.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {errors.email && (
+                    <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                      {errors.email}
+                    </div>
+                  )}
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label">Mobile Number <span style={{ color: '#f87171' }}>*</span></label>
+                  <div className="input-icon-wrapper">
+                    <i className="bi bi-phone input-icon"></i>
+                    <input
+                      type="text"
+                      name="phoneNumber"
+                      className={`form-control ${errors.phoneNumber ? 'is-invalid' : isPhoneValid ? 'is-valid' : ''}`}
+                      placeholder="10-digit Indian number"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {isPhoneValid && !errors.phoneNumber && (
+                    <div style={{ color: '#34d399', fontSize: '0.78rem', fontWeight: 500, marginTop: '0.25rem' }}>
+                      <i className="bi bi-check-circle-fill me-1"></i> Valid mobile number
+                    </div>
+                  )}
+                  {errors.phoneNumber && (
+                    <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                      {errors.phoneNumber}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="mb-3">
-                <label className="form-label">Residential Address <span className="text-danger">*</span></label>
-                <textarea name="address" rows="2"
-                  className={`form-control ${errors.address ? 'is-invalid' : ''}`}
-                  placeholder="Street address, City, State, ZIP"
-                  value={formData.address} onChange={handleChange} />
-                {errors.address && <div className="invalid-feedback">{errors.address}</div>}
+                <label className="form-label">Residential Address <span style={{ color: '#f87171' }}>*</span></label>
+                <div className="input-icon-wrapper">
+                  <i className="bi bi-geo-alt input-icon" style={{ top: '1.125rem', transform: 'none' }}></i>
+                  <textarea
+                    name="address"
+                    rows="2"
+                    className={`form-control ${errors.address ? 'is-invalid' : ''}`}
+                    placeholder="Street address, City, State, PIN"
+                    value={formData.address}
+                    onChange={handleChange}
+                    style={{ paddingLeft: '2.5rem', resize: 'none' }}
+                  />
+                </div>
+                {errors.address && (
+                  <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                    {errors.address}
+                  </div>
+                )}
               </div>
 
-              <div className="row mb-4">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">PAN Card Number <span className="text-danger">*</span></label>
-                  <input type="text" name="panNumber"
-                    className={`form-control ${errors.panNumber ? 'is-invalid' : ''}`}
-                    placeholder="ABCDE1234F"
-                    value={formData.panNumber} onChange={handleChange} />
-                  {errors.panNumber && <div className="invalid-feedback">{errors.panNumber}</div>}
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <label className="form-label">PAN Card Number <span style={{ color: '#f87171' }}>*</span></label>
+                  <div className="input-icon-wrapper">
+                    <i className="bi bi-credit-card input-icon"></i>
+                    <input
+                      type="text"
+                      name="panNumber"
+                      className={`form-control ${errors.panNumber ? 'is-invalid' : ''}`}
+                      placeholder="ABCDE1234F"
+                      value={formData.panNumber}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {errors.panNumber && (
+                    <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                      {errors.panNumber}
+                    </div>
+                  )}
                 </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Aadhaar Number <span className="text-danger">*</span></label>
-                  <input type="text" name="aadhaarNumber"
-                    className={`form-control ${errors.aadhaarNumber ? 'is-invalid' : ''}`}
-                    placeholder="12-digit Aadhaar"
-                    value={formData.aadhaarNumber} onChange={handleChange} />
-                  {errors.aadhaarNumber && <div className="invalid-feedback">{errors.aadhaarNumber}</div>}
+                <div className="col-md-6">
+                  <label className="form-label">Aadhaar Number <span style={{ color: '#f87171' }}>*</span></label>
+                  <div className="input-icon-wrapper">
+                    <i className="bi bi-fingerprint input-icon"></i>
+                    <input
+                      type="text"
+                      name="aadhaarNumber"
+                      className={`form-control ${errors.aadhaarNumber ? 'is-invalid' : ''}`}
+                      placeholder="12-digit Aadhaar"
+                      value={formData.aadhaarNumber}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  {errors.aadhaarNumber && (
+                    <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                      {errors.aadhaarNumber}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <button type="button" className="btn btn-primary w-100 py-2.5"
-                onClick={handleGenerateOTPs} disabled={generatingOtp}>
-                {generatingOtp
-                  ? <><span className="spinner-border spinner-border-sm me-2" />Sending Verification Code...</>
-                  : <><i className="bi bi-shield-lock me-2" />Send Verification OTP</>}
+              <button
+                type="button"
+                className="btn btn-primary w-100"
+                onClick={handleGenerateOTPs}
+                disabled={generatingOtp}
+              >
+                {generatingOtp ? (
+                  <>
+                    <span
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid rgba(3, 7, 18, 0.2)',
+                        borderTopColor: '#030712',
+                        borderRadius: '50%',
+                        animation: 'spin 0.7s linear infinite',
+                        display: 'inline-block'
+                      }}
+                    />
+                    Sending OTP...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-shield-lock"></i>
+                    Continue — Send OTP
+                  </>
+                )}
               </button>
             </div>
           )}
 
-          {/* ════════════ STEP 2: OTP Verification & Validation ════════════ */}
+          {/* ══ STEP 2: OTP Verification ══ */}
           {currentStep === 2 && (
             <div className="animate-fade">
-              <div className="alert alert-primary py-2 mb-4 d-flex align-items-center gap-2 small bg-primary-subtle border-primary text-primary-emphasis">
-                <i className="bi bi-shield-exclamation fs-5" />
-                <span>
-                  Verify your <strong>email address</strong> via OTP. Your mobile number has been pre-validated.
-                </span>
-              </div>
+              <h5 style={{ fontFamily: "'Outfit', sans-serif", color: '#ffffff', fontWeight: 700, marginBottom: '0.5rem' }}>
+                <i className="bi bi-shield-check me-2" style={{ color: '#D4AF37' }}></i>
+                Verify Your Identity
+              </h5>
+              <p style={{ color: 'rgba(148, 163, 184, 0.7)', fontSize: '0.8125rem', marginBottom: '1.5rem' }}>
+                Validate the OTP sent to your email to complete verification.
+              </p>
 
               <div className="row g-3 mb-4">
-
-                {/* ── Phone Validation Panel ── */}
+                {/* Mobile validated */}
                 <div className="col-md-6">
-                  <div className="rounded-3 p-3 h-100 d-flex flex-column justify-content-between"
-                    style={{ background: 'rgba(46, 204, 113, 0.15)', border: '1.5px solid rgba(46, 204, 113, 0.45)', transition: 'all 0.3s' }}>
-                    <div>
-                      <div className="d-flex align-items-center justify-content-between mb-2">
-                        <span className="fw-semibold small text-success d-flex align-items-center gap-1">
-                          <i className="bi bi-phone" /> Mobile
-                        </span>
-                        <span className="badge bg-success">
-                          <i className="bi bi-patch-check-fill me-1" />Validated
-                        </span>
-                      </div>
-
-                      <p className="text-muted mb-2" style={{ fontSize: '0.72rem' }}>
-                        Mobile Number: <strong>+91 {formData.phoneNumber}</strong>
-                      </p>
-                      
-                      <div className="alert alert-success py-2 px-2 d-flex align-items-center gap-2 mb-0 mt-3"
-                           style={{ fontSize: '0.75rem', borderRadius: '6px', backgroundColor: 'rgba(46, 204, 113, 0.18)', color: '#2ecc71', borderColor: 'rgba(46, 204, 113, 0.35)' }}>
-                        <i className="bi bi-check-circle-fill" />
-                        <span>Validated</span>
-                      </div>
+                  <div className="verify-panel success">
+                    <div className="d-flex align-items-center justify-content-between mb-2">
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <i className="bi bi-phone-fill"></i> Mobile
+                      </span>
+                      <span className="status-badge approved" style={{ fontSize: '0.7rem' }}>Validated</span>
+                    </div>
+                    <p style={{ fontSize: '0.78rem', color: 'rgba(148, 163, 184, 0.7)', margin: 0 }}>
+                      +91 {formData.phoneNumber}
+                    </p>
+                    <div style={{ marginTop: '0.75rem', color: '#34d399', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <i className="bi bi-check-circle-fill"></i> Number validated
                     </div>
                   </div>
                 </div>
 
-                {/* ── Email OTP Panel (Backend) ── */}
+                {/* Email OTP */}
                 <div className="col-md-6">
-                  <div className="rounded-3 p-3 h-100"
-                    style={{ 
-                      background: emailVerified ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                      border: emailVerified ? '1.5px solid rgba(46, 204, 113, 0.45)' : '1.5px solid rgba(255, 255, 255, 0.15)',
-                      transition: 'all 0.3s' 
-                    }}>
+                  <div className={`verify-panel ${emailVerified ? 'success' : 'pending'}`}>
                     <div className="d-flex align-items-center justify-content-between mb-2">
-                      <span className="fw-semibold small text-primary d-flex align-items-center gap-1" style={{ color: '#D4AF37 !important' }}>
-                        <i className="bi bi-envelope-at" /> Email OTP
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: emailVerified ? '#34d399' : '#93c5fd', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <i className="bi bi-envelope-at-fill"></i> Email OTP
                       </span>
-                      <VerifBadge verified={emailVerified} />
+                      <span className={`status-badge ${emailVerified ? 'approved' : 'pending'}`} style={{ fontSize: '0.7rem' }}>
+                        {emailVerified ? 'Verified' : 'Pending'}
+                      </span>
                     </div>
-
-                    <p className="text-muted mb-2" style={{ fontSize: '0.72rem' }}>
-                      Sent to <strong>{formData.email}</strong>
+                    <p style={{ fontSize: '0.78rem', color: 'rgba(148, 163, 184, 0.7)', margin: '0 0 0.625rem' }}>
+                      Sent to {formData.email}
                     </p>
-
-                    <input type="text" name="emailOtp"
-                      className={`form-control form-control-sm text-center fw-bold ${
-                        emailOtpStatus.type === 'error' ? 'is-invalid' : emailVerified ? 'is-valid' : ''}`}
+                    <input
+                      type="text"
+                      name="emailOtp"
+                      className={`form-control form-control-sm text-center fw-bold ${emailOtpStatus.type === 'error' ? 'is-invalid' : emailVerified ? 'is-valid' : ''}`}
                       placeholder="• • • • • •"
                       maxLength="6"
                       disabled={emailVerified}
                       value={formData.emailOtp}
                       onChange={handleChange}
-                      style={{ letterSpacing: '0.3em', fontSize: '1rem' }}
+                      style={{ letterSpacing: '0.4em', fontSize: '1rem' }}
                     />
                     <OtpStatusMessage status={emailOtpStatus} />
-
-                    <button type="button"
-                      className={`btn btn-sm w-100 mt-2 ${emailVerified ? 'btn-success text-white' : 'btn-primary'}`}
+                    <button
+                      type="button"
+                      className={`btn btn-sm w-100 mt-2 ${emailVerified ? 'btn-success' : 'btn-primary'}`}
                       onClick={handleVerifyEmailOtp}
-                      disabled={emailVerified || verifyingEmail}>
-                      {verifyingEmail
-                        ? <><span className="spinner-border spinner-border-sm me-1" />Verifying...</>
-                        : emailVerified
-                          ? <><i className="bi bi-check-lg me-1" />Verified</>
-                          : 'Verify Email OTP'}
+                      disabled={emailVerified || verifyingEmail}
+                      style={{
+                        padding: '0.5rem 1rem !important',
+                        fontSize: '0.8rem !important',
+                        background: emailVerified ? '#059669 !important' : undefined,
+                        color: emailVerified ? '#ffffff !important' : undefined
+                      }}
+                    >
+                      {verifyingEmail ? (
+                        <>
+                          <span style={{ width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.7s linear infinite', display: 'inline-block' }} /> Verifying...
+                        </>
+                      ) : emailVerified ? (
+                        <>
+                          <i className="bi bi-check-lg me-1"></i>Verified
+                        </>
+                      ) : (
+                        'Verify Email OTP'
+                      )}
                     </button>
-
                     {!emailVerified && (
-                      <button type="button"
-                        className="btn btn-link btn-sm text-muted p-0 mt-2 w-100"
+                      <button
+                        type="button"
+                        className="btn btn-sm w-100 mt-1"
                         onClick={handleResendEmailOtp}
                         disabled={emailCooldown > 0 || resendingEmail}
-                        style={{ fontSize: '0.72rem', textDecoration: 'none' }}>
-                        {resendingEmail
-                          ? <><span className="spinner-border spinner-border-sm me-1" />Resending...</>
-                          : emailCooldown > 0
-                            ? <><i className="bi bi-clock me-1" />Resend in {emailCooldown}s</>
-                            : <><i className="bi bi-arrow-counterclockwise me-1" />Resend OTP</>}
+                        style={{ background: 'none', border: 'none', color: 'rgba(148, 163, 184, 0.7)', fontSize: '0.75rem', cursor: emailCooldown > 0 ? 'not-allowed' : 'pointer' }}
+                      >
+                        {resendingEmail ? 'Resending...'
+                          : emailCooldown > 0 ? `Resend in ${emailCooldown}s`
+                          : <><i className="bi bi-arrow-counterclockwise me-1"></i>Resend OTP</>}
                       </button>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* ── Verification Status Bar ── */}
-              <div className="rounded-3 p-3 mb-4 small d-flex align-items-center gap-4"
+              {/* Status bar */}
+              <div
+                className="p-3 rounded-3 d-flex align-items-center gap-3 mb-4"
                 style={{
-                  background: emailVerified ? 'rgba(46, 204, 113, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  border: emailVerified ? '1.5px solid rgba(46, 204, 113, 0.45)' : '1.5px solid rgba(255, 255, 255, 0.15)',
-                  color: emailVerified ? '#2ecc71' : 'rgba(255, 255, 255, 0.85)'
-                }}>
-                <span>
-                  <i className="bi bi-check-circle-fill text-success me-1" />
-                  Mobile (Validated)
+                  background: emailVerified ? 'rgba(52, 211, 153, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+                  border: `1px solid ${emailVerified ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255, 255, 255, 0.06)'}`,
+                  fontSize: '0.8125rem'
+                }}
+              >
+                <span style={{ color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <i className="bi bi-check-circle-fill"></i> Mobile
                 </span>
-                <span>
-                  <i className={`bi ${emailVerified ? 'bi-check-circle-fill text-success' : 'bi-circle'} me-1`} />
-                  Email (OTP)
+                <span style={{ color: emailVerified ? '#34d399' : 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <i className={`bi ${emailVerified ? 'bi-check-circle-fill' : 'bi-circle'}`}></i> Email
                 </span>
-                {emailVerified
-                  ? <span className="ms-auto fw-semibold text-success"><i className="bi bi-shield-check me-1" />Ready to proceed</span>
-                  : <span className="ms-auto" style={{ fontSize: '0.72rem' }}>Verify email to continue</span>}
+                <span style={{ marginLeft: 'auto', fontWeight: 600, color: emailVerified ? '#34d399' : 'rgba(148, 163, 184, 0.4)', fontSize: '0.75rem' }}>
+                  {emailVerified ? <><i className="bi bi-shield-fill-check me-1"></i>Ready to proceed</> : 'Verify email to continue'}
+                </span>
               </div>
 
               <div className="d-flex gap-2">
-                <button type="button" className="btn btn-outline-primary w-50"
-                  onClick={() => setCurrentStep(1)}>
-                  <i className="bi bi-arrow-left me-1" />Back
+                <button type="button" className="btn btn-outline-primary w-50" onClick={() => setCurrentStep(1)}>
+                  <i className="bi bi-arrow-left me-1"></i>Back
                 </button>
-                <button type="button" className="btn btn-primary w-50"
-                  onClick={handleProceedToPasswords}
-                  disabled={!emailVerified}>
-                  {emailVerified
-                    ? <><i className="bi bi-lock me-1" />Set Password</>
-                    : 'Verify Email OTP First'}
+                <button type="button" className="btn btn-primary w-50" onClick={handleProceedToPasswords} disabled={!emailVerified}>
+                  {emailVerified ? <><i className="bi bi-lock me-1"></i>Set Password</> : 'Verify Email First'}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ════════════ STEP 3: Password Setup ════════════ */}
+          {/* ══ STEP 3: Password Setup ══ */}
           {currentStep === 3 && (
             <form onSubmit={handleSubmitRegistration} className="animate-fade">
+              <h5 style={{ fontFamily: "'Outfit', sans-serif", color: '#ffffff', fontWeight: 700, marginBottom: '0.5rem' }}>
+                <i className="bi bi-lock-fill me-2" style={{ color: '#D4AF37' }}></i>
+                Secure Your Account
+              </h5>
+
               {emailVerified && phoneVerified ? (
-                <div className="alert alert-success py-2 small mb-4 d-flex align-items-center gap-2 bg-success-subtle border-success text-success-emphasis">
-                  <i className="bi bi-shield-check" />
-                  <span>Both mobile and email verified. Create your secure login password below.</span>
+                <div className="alert alert-success d-flex align-items-center gap-2 mb-4 p-3 border-0">
+                  <i className="bi bi-shield-fill-check flex-shrink-0" style={{ fontSize: '1.1rem' }}></i>
+                  <span>Email and mobile verified. Create a secure password below.</span>
                 </div>
               ) : (
-                <div className="alert alert-danger py-2 small mb-4 d-flex align-items-center gap-2 bg-danger-subtle border-danger text-danger-emphasis">
-                  <i className="bi bi-exclamation-triangle" />
-                  <span>Verification is incomplete. Please complete email and mobile validation.</span>
+                <div className="alert alert-danger d-flex align-items-center gap-2 mb-4 p-3 border-0">
+                  <i className="bi bi-exclamation-triangle flex-shrink-0" style={{ fontSize: '1.1rem' }}></i>
+                  <span>Verification incomplete. Please complete email and mobile validation.</span>
                 </div>
               )}
 
-              <div className="row">
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Set Password <span className="text-danger">*</span></label>
-                  <input type="password" name="password"
-                    className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                    placeholder="Minimum 6 characters"
-                    value={formData.password} onChange={handleChange} />
-                  {errors.password && <div className="invalid-feedback">{errors.password}</div>}
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <label className="form-label">Set Password <span style={{ color: '#f87171' }}>*</span></label>
+                  <div className="input-icon-wrapper has-right-icon">
+                    <i className="bi bi-lock input-icon"></i>
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      name="password"
+                      className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                      placeholder="Minimum 6 characters"
+                      value={formData.password}
+                      onChange={handleChange}
+                    />
+                    <button type="button" className="input-icon-right" onClick={() => setShowPass(!showPass)} aria-label="Toggle">
+                      <i className={`bi ${showPass ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                      {errors.password}
+                    </div>
+                  )}
                 </div>
-                <div className="col-md-6 mb-3">
-                  <label className="form-label">Confirm Password <span className="text-danger">*</span></label>
-                  <input type="password" name="confirmPassword"
-                    className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
-                    placeholder="Re-enter password"
-                    value={formData.confirmPassword} onChange={handleChange} />
-                  {errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword}</div>}
+                <div className="col-md-6">
+                  <label className="form-label">Confirm Password <span style={{ color: '#f87171' }}>*</span></label>
+                  <div className="input-icon-wrapper has-right-icon">
+                    <i className="bi bi-lock-fill input-icon"></i>
+                    <input
+                      type={showConfirmPass ? 'text' : 'password'}
+                      name="confirmPassword"
+                      className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
+                      placeholder="Re-enter password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                    />
+                    <button type="button" className="input-icon-right" onClick={() => setShowConfirmPass(!showConfirmPass)} aria-label="Toggle">
+                      <i className={`bi ${showConfirmPass ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <div className="invalid-feedback d-block mt-1" style={{ color: '#fca5a5', fontSize: '0.75rem' }}>
+                      {errors.confirmPassword}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <div className="d-flex gap-2 mt-4 pt-2 border-top" style={{ borderColor: 'rgba(255, 255, 255, 0.08) !important' }}>
-                <button type="button" className="btn btn-outline-primary w-50"
-                  onClick={() => setCurrentStep(2)}>
-                  <i className="bi bi-arrow-left me-1" />Back
+              {formData.password && formData.confirmPassword && formData.password === formData.confirmPassword && (
+                <div style={{ color: '#34d399', fontSize: '0.78rem', fontWeight: 500, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                  <i className="bi bi-check-circle-fill"></i> Passwords match
+                </div>
+              )}
+
+              <div className="d-flex gap-2 mt-2">
+                <button type="button" className="btn btn-outline-primary w-50" onClick={() => setCurrentStep(2)}>
+                  <i className="bi bi-arrow-left me-1"></i>Back
                 </button>
-                <button type="submit" className="btn btn-primary w-50"
-                  disabled={submitting || !emailVerified || !phoneVerified || !formData.password || formData.password !== formData.confirmPassword}>
-                  {submitting
-                    ? <><span className="spinner-border spinner-border-sm me-2" />Creating Account...</>
-                    : <><i className="bi bi-person-check me-2" />Create Account</>}
+                <button
+                  type="submit"
+                  className="btn btn-primary w-50"
+                  disabled={submitting || !emailVerified || !phoneVerified || !formData.password || formData.password !== formData.confirmPassword}
+                >
+                  {submitting ? (
+                    <>
+                      <span
+                        style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid rgba(3, 7, 18, 0.2)',
+                          borderTopColor: '#030712',
+                          borderRadius: '50%',
+                          animation: 'spin 0.7s linear infinite',
+                          display: 'inline-block'
+                        }}
+                      />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-person-check me-1"></i>
+                      Create Account
+                    </>
+                  )}
                 </button>
               </div>
             </form>
           )}
 
-          {/* ════════════ STEP 4: Success ════════════ */}
+          {/* ══ STEP 4: Success ══ */}
           {currentStep === 4 && (
-            <div className="text-center py-4 animate-fade">
-              <div className="d-inline-flex p-4 rounded-circle mb-4" style={{ background: 'rgba(46, 204, 113, 0.15)', border: '1.5px solid rgba(46, 204, 113, 0.45)', color: '#2ecc71' }}>
-                <i className="bi bi-shield-check" style={{ fontSize: '3rem' }} />
+            <div className="text-center py-3 animate-fade">
+              <div className="success-circle">
+                <i className="bi bi-check-lg" style={{ fontSize: '2.25rem', color: '#34d399' }}></i>
               </div>
-              <h3 className="fw-bold text-success" style={{ background: 'none', WebkitTextFillColor: 'initial', color: '#2ecc71' }}>Account Created!</h3>
-              <p className="text-muted mt-2 px-md-5">
-                Your GrowStar account has been created and fully verified.
-                Redirecting to the login page...
+              <h3 style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, color: '#34d399', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
+                Account Created!
+              </h3>
+              <p style={{ color: 'rgba(148,163,184,0.8)', fontSize: '0.9375rem', marginBottom: '1.75rem' }}>
+                Your GrowStar account has been successfully registered.
+                <br />Redirecting to login dashboard...
               </p>
-              <div className="mt-4">
-                <Link to="/login" className="btn btn-primary px-5">
-                  <i className="bi bi-box-arrow-in-right me-2" />Proceed to Login
-                </Link>
-              </div>
+              <Link to="/login" className="btn btn-primary px-4">
+                <i className="bi bi-box-arrow-in-right me-1"></i>
+                Proceed to Login
+              </Link>
             </div>
           )}
 
+          {/* Footer Link */}
           {currentStep !== 4 && (
-            <>
-              <hr className="my-4" style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }} />
-              <div className="text-center small">
-                <span className="text-muted">Already have an account? </span>
-                <Link to="/login" className="fw-semibold text-decoration-none" style={{ color: '#D4AF37' }}>Sign in here</Link>
-              </div>
-            </>
+            <p className="text-center mt-4 mb-0" style={{ fontSize: '0.875rem', color: 'rgba(148,163,184,0.6)' }}>
+              Already have an account?{' '}
+              <Link to="/login" style={{ color: '#D4AF37', fontWeight: 600, textDecoration: 'none' }}>
+                Sign in here
+              </Link>
+            </p>
           )}
-
-          {/* Trust Badge Indicator */}
-          <div className="text-center mt-4">
-            <div className="auth-trust-badge">
-              <i className="bi bi-shield-fill-check"></i>
-              <span>Secure Client Portal | 256-bit SSL</span>
-            </div>
-          </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

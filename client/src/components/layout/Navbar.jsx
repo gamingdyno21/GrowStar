@@ -14,63 +14,83 @@ const Navbar = () => {
     navigate('/login');
   };
 
-  const isActive = (path) => {
-    return location.pathname === path ? 'active' : '';
+  const isActive = (path) => location.pathname === path;
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const navItems = [
+    { to: '/dashboard',       icon: 'bi-grid-1x2-fill', label: 'Dashboard'  },
+    { to: '/documents',       icon: 'bi-folder2-open',  label: 'Documents'  },
+    { to: '/client/messages', icon: 'bi-chat-left-dots-fill', label: 'Messages' },
+    { to: '/profile',         icon: 'bi-person-fill',   label: 'Profile'    },
+  ];
+
   return (
-    <nav className="navbar navbar-expand-lg client-navbar sticky-top bg-white border-bottom shadow-sm">
-      <div className="container">
-        <Link className="navbar-brand client-brand d-flex align-items-center text-decoration-none" to="/dashboard">
-          <BrandLogo className="me-2" width={28} height={28} />
-          <span className="fw-bold text-dark" style={{ letterSpacing: '-0.3px' }}>GrowStar</span>
+    <nav className="client-navbar navbar navbar-expand-lg">
+      <div className="container" style={{ maxWidth: '1280px', padding: '0 1.5rem' }}>
+        {/* Brand */}
+        <Link className="client-brand" to="/dashboard" onClick={() => setIsOpen(false)}>
+          <BrandLogo width={26} height={26} />
+          <span>GrowStar</span>
         </Link>
+
+        {/* Mobile toggle */}
         <button
-          className="navbar-toggler border-0"
+          className="navbar-toggler border-0 p-1"
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           aria-controls="clientNavbar"
           aria-expanded={isOpen}
           aria-label="Toggle navigation"
+          style={{ color: '#64748b', background: 'none', outline: 'none' }}
         >
-          <span className="navbar-toggler-icon"></span>
+          <i className={`bi ${isOpen ? 'bi-x-lg' : 'bi-list'} fs-5`}></i>
         </button>
+
+        {/* Nav items */}
         <div className={`collapse navbar-collapse ${isOpen ? 'show' : ''}`} id="clientNavbar">
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-4">
-            <li className="nav-item">
-              <Link className={`nav-link fw-semibold px-3 ${isActive('/dashboard') ? 'text-primary' : 'text-secondary'}`} to="/dashboard">
-                <i className="bi bi-grid-1x2-fill me-1"></i> Dashboard
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className={`nav-link fw-semibold px-3 ${isActive('/documents') ? 'text-primary' : 'text-secondary'}`} to="/documents">
-                <i className="bi bi-folder2-open me-1"></i> Documents
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className={`nav-link fw-semibold px-3 ${isActive('/client/messages') ? 'text-primary' : 'text-secondary'}`} to="/client/messages">
-                <i className="bi bi-chat-left-dots-fill me-1"></i> Messages
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link className={`nav-link fw-semibold px-3 ${isActive('/profile') ? 'text-primary' : 'text-secondary'}`} to="/profile">
-                <i className="bi bi-person-fill me-1"></i> Profile
-              </Link>
-            </li>
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 mt-2 mt-lg-0">
+            {navItems.map(item => (
+              <li className="nav-item" key={item.to}>
+                <Link
+                  className={`nav-link-item ${isActive(item.to) ? 'active' : ''}`}
+                  to={item.to}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <i className={`bi ${item.icon}`}></i>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
           </ul>
-          <div className="d-flex align-items-center">
+
+          {/* Right side */}
+          <div className="d-flex align-items-center gap-3 pb-2 pb-lg-0">
             {user && (
-              <span className="me-3 text-dark fw-semibold">
-                Client: <span className="text-primary">{user.fullName}</span>
-                {user.status && (
-                  <span className={`ms-2 badge badge-status ${user.status.toLowerCase()}`}>
-                    {user.status}
-                  </span>
-                )}
-              </span>
+              <div className="nav-user-chip">
+                <div className="nav-user-avatar">{getInitials(user.fullName)}</div>
+                <div style={{ lineHeight: 1.2 }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.fullName?.split(' ')[0] || 'Client'}
+                  </div>
+                  {user.status && (
+                    <span className={`status-badge ${user.status.toLowerCase()}`} style={{ fontSize: '0.65rem', padding: '0.1em 0.4em' }}>
+                      {user.status}
+                    </span>
+                  )}
+                </div>
+              </div>
             )}
-            <button className="btn btn-outline-danger btn-sm px-3 d-flex align-items-center" onClick={handleLogout}>
-              <i className="bi bi-box-arrow-right me-1"></i> Logout
+            <button
+              className="btn btn-ghost btn-sm d-flex align-items-center gap-1"
+              onClick={handleLogout}
+              style={{ color: '#64748b', fontSize: '0.8125rem' }}
+            >
+              <i className="bi bi-box-arrow-right"></i>
+              <span className="d-none d-lg-inline">Logout</span>
             </button>
           </div>
         </div>

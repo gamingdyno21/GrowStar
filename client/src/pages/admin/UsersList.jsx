@@ -4,6 +4,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import PageHeader from '../../components/common/PageHeader';
 import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { useToast } from '../../context/ToastContext';
 import adminService from '../../services/adminService';
 import { formatDate } from '../../utils/helpers';
@@ -14,28 +15,23 @@ const UsersList = () => {
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Filters
+  const [deletingId, setDeletingId] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  // Delete confirmation modal
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, clientId: null, clientName: '' });
 
-  useEffect(() => {
-    applyFilters();
-  }, [clients, searchTerm, statusFilter]);
+  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { applyFilters(); }, [clients, searchTerm, statusFilter]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const res = await adminService.getAllUsers();
-      if (res.success) {
-        setClients(res.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch user list:', err);
+      if (res.success) setClients(res.data);
+    } catch {
       showToast('Failed to load client list.', 'error');
     } finally {
       setLoading(false);
@@ -44,188 +40,245 @@ const UsersList = () => {
 
   const applyFilters = () => {
     let result = [...clients];
-
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (c) =>
-          c.fullName.toLowerCase().includes(term) ||
-          c.email.toLowerCase().includes(term) ||
-          (c.phone || c.phoneNumber || '').toLowerCase().includes(term) ||
-          c.panNumber.toLowerCase().includes(term) ||
-          c._id.toLowerCase().includes(term)
+      result = result.filter(c =>
+        c.fullName.toLowerCase().includes(term) ||
+        c.email.toLowerCase().includes(term) ||
+        (c.phone || c.phoneNumber || '').toLowerCase().includes(term) ||
+        c.panNumber.toLowerCase().includes(term) ||
+        c._id.toLowerCase().includes(term)
       );
     }
-
     if (statusFilter !== 'All') {
-      result = result.filter((c) => c.status === statusFilter);
+      result = result.filter(c => c.status === statusFilter);
     }
-
     setFilteredClients(result);
   };
 
   const handleStatusChange = async (id, newStatus) => {
-    if (!window.confirm(`Are you sure you want to change status to ${newStatus}?`)) return;
     try {
       const res = await adminService.updateUserStatus(id, newStatus);
       if (res.success) {
-        showToast(`Client verification status set to ${newStatus}.`, 'success');
+        showToast(`Client status updated to ${newStatus}.`, 'success');
         fetchUsers();
       }
-    } catch (err) {
-      showToast('Verification status change failed.', 'error');
+    } catch {
+      showToast('Status update failed.', 'error');
     }
   };
 
-  const handleDeleteUser = async (id, name) => {
-    const confirmation = window.confirm(
-      `CRITICAL WARNING: Are you absolutely sure you want to permanently delete the client "${name}"?\n\nThis will permanently delete this client user and all associated active investments, daily profit timelines, messages, and ledger transactions from MongoDB. This action is irreversible.`
-    );
-    if (!confirmation) return;
+  /* ── BUG FIX: Delete with proper modal + error handling ── */
+  const openDeleteModal = (id, name) => {
+    setDeleteModal({ isOpen: true, clientId: id, clientName: name });
+  };
 
-    setLoading(true);
+  const handleConfirmDelete = async () => {
+    const { clientId, clientName } = deleteModal;
+    setDeleteModal(prev => ({ ...prev, isOpen: false }));
+    setDeletingId(clientId);
     try {
-      const res = await adminService.deleteUser(id);
+      const res = await adminService.deleteUser(clientId);
       if (res.success) {
-        showToast('Client and all associated records permanently deleted.', 'success');
-        fetchUsers();
+        showToast(`"${clientName}" and all associated records permanently deleted.`, 'success');
+        // Optimistically remove from state for instant UI update
+        setClients(prev => prev.filter(c => c._id !== clientId));
       } else {
-        showToast('Failed to delete client record.', 'error');
-        setLoading(false);
+        showToast('Failed to delete client record. Please try again.', 'error');
+        fetchUsers(); // Refresh to sync state
       }
     } catch (err) {
-      showToast('Failed to delete client record.', 'error');
-      setLoading(false);
+      const msg = err.response?.data?.message || 'Failed to delete client record.';
+      showToast(msg, 'error');
+      fetchUsers(); // Refresh to sync state
+    } finally {
+      setDeletingId(null);
     }
   };
+
+  const statusColors = {
+    Approved: { bg: '#d1fae5', color: '#059669' },
+    Pending:  { bg: '#fef3c7', color: '#d97706' },
+    Rejected: { bg: '#fee2e2', color: '#dc2626' },
+  };
+
+  const filterOptions = ['All', ...ACCOUNT_STATUSES];
 
   return (
-    <div className="container-fluid p-0 bg-light min-vh-100">
-      <div className="row g-0">
-        {/* Sidebar Column */}
-        <div className="col-12 col-md-3 col-xl-2 d-flex flex-column">
-          <Sidebar />
-        </div>
+    <div className="d-flex" style={{ minHeight: '100vh', background: '#f8fafc' }}>
+      {/* Delete Confirm Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Client Account?"
+        message={`This will permanently delete "${deleteModal.clientName}" and ALL associated data — investments, profits, transactions, and messages. This action is irreversible.`}
+        confirmText="Delete Permanently"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
+        variant="danger"
+      />
 
-        {/* Content Column */}
-        <div className="col-12 col-md-9 col-xl-10 p-4">
-          <PageHeader title="Client Directory" subtitle="Manage registered accounts, edit profiles, and purge records" />
+      {/* Sidebar */}
+      <div className="d-none d-md-block" style={{ width: '240px', flexShrink: 0 }}>
+        <Sidebar />
+      </div>
+      <div className="d-md-none">
+        <Sidebar />
+      </div>
 
-          {/* Filter Toolbar */}
-          <div className="card p-3 border-light shadow-sm rounded-3 mb-4 bg-white">
-            <div className="row g-3">
-              <div className="col-md-6 col-lg-8">
-                <div className="input-group">
-                  <span className="input-group-text bg-transparent border-end-0">
-                    <i className="bi bi-search text-secondary"></i>
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control border-start-0 ps-0"
-                    placeholder="Search by client name, ID, email, phone, or PAN..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="col-md-6 col-lg-4">
-                <div className="d-flex align-items-center">
-                  <label className="me-2 text-secondary fw-semibold small text-uppercase mb-0">Status:</label>
-                  <select
-                    className="form-select"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="All">All Accounts</option>
-                    {ACCOUNT_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
+      {/* Content */}
+      <div className="flex-grow-1" style={{ minWidth: 0, padding: '1.75rem 2rem', overflowX: 'hidden' }}>
+        <PageHeader
+          title="Client Directory"
+          subtitle="Manage registered accounts, edit profiles, and purge records"
+        />
+
+        {/* Search + Filter Bar */}
+        <div
+          className="mb-4 p-3 rounded-3 d-flex flex-column flex-md-row align-items-md-center gap-3"
+          style={{ background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(15,23,42,0.06)' }}
+        >
+          {/* Search */}
+          <div className="search-bar flex-grow-1">
+            <i className="bi bi-search search-bar-icon"></i>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Search by name, email, phone, PAN, or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
-          {loading ? (
-            <Loader message="Loading registered client database..." />
-          ) : (
-            <div className="animate-fade">
-              <Card title={`Clients Registry (${filteredClients.length})`}>
-                {filteredClients.length === 0 ? (
-                  <div className="text-center py-5 text-secondary">
-                    <i className="bi bi-people fs-1 mb-2 d-block text-muted"></i>
-                    No client records found.
-                  </div>
-                ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0 text-start">
-                      <thead>
-                        <tr className="table-light">
-                          <th className="ps-3 border-0">Client ID</th>
-                          <th className="border-0">Full Name</th>
-                          <th className="border-0">Phone</th>
-                          <th className="border-0">Email</th>
-                          <th className="border-0">PAN</th>
-                          <th className="border-0">Registration Date</th>
-                          <th className="border-0">Status</th>
-                          <th className="text-end pe-3 border-0">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredClients.map((client) => (
-                          <tr key={client._id}>
-                            <td className="ps-3 text-secondary font-monospace" style={{ fontSize: '0.8rem' }} title={client._id}>
-                              #{client._id.substring(18).toUpperCase()}
+          {/* Filter pills */}
+          <div className="d-flex align-items-center gap-2 flex-shrink-0">
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>
+              Status:
+            </span>
+            <div className="filter-pills">
+              {filterOptions.map(f => (
+                <button
+                  key={f}
+                  className={`filter-pill ${statusFilter === f ? (f === 'Approved' ? 'active-success' : f === 'Rejected' ? 'active-danger' : f === 'Pending' ? 'active-warning' : 'active') : ''}`}
+                  onClick={() => setStatusFilter(f)}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <Loader message="Loading client database..." skeleton rows={6} />
+        ) : (
+          <div className="animate-fade">
+            <Card title={`Clients Registry (${filteredClients.length} of ${clients.length})`}>
+              {filteredClients.length === 0 ? (
+                <div className="text-center py-5" style={{ color: '#94a3b8' }}>
+                  <i className="bi bi-people d-block fs-1 mb-3" style={{ color: '#d1d5db' }}></i>
+                  <p className="mb-1" style={{ fontWeight: 600, color: '#475569' }}>No clients found</p>
+                  <p style={{ fontSize: '0.875rem', margin: 0 }}>Try adjusting your search or filter criteria.</p>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-hover align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th className="ps-3">Client</th>
+                        <th>Contact</th>
+                        <th>PAN</th>
+                        <th>Registered</th>
+                        <th>Status</th>
+                        <th className="text-end pe-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredClients.map(client => {
+                        const sc = statusColors[client.status] || statusColors.Pending;
+                        const isDeleting = deletingId === client._id;
+                        return (
+                          <tr key={client._id} style={{ opacity: isDeleting ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+                            <td className="ps-3">
+                              <div className="d-flex align-items-center gap-2">
+                                {/* Avatar */}
+                                <div
+                                  className="avatar avatar-sm avatar-blue flex-shrink-0"
+                                  style={{ fontFamily: "'Outfit', sans-serif" }}
+                                >
+                                  {client.fullName?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                <div>
+                                  <Link
+                                    to={`/admin/users/${client._id}`}
+                                    style={{ fontWeight: 600, color: '#0f172a', textDecoration: 'none', fontSize: '0.875rem', display: 'block' }}
+                                  >
+                                    {client.fullName}
+                                  </Link>
+                                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                                    #{client._id.substring(18).toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
                             </td>
                             <td>
-                              <Link
-                                to={`/admin/users/${client._id}`}
-                                className="fw-bold text-primary text-decoration-none"
+                              <div style={{ fontSize: '0.8375rem', color: '#475569' }}>{client.email}</div>
+                              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>{client.phone || client.phoneNumber || 'N/A'}</div>
+                            </td>
+                            <td style={{ fontFamily: 'monospace', fontSize: '0.875rem', color: '#475569' }}>
+                              {client.panNumber}
+                            </td>
+                            <td style={{ fontSize: '0.8375rem', color: '#64748b' }}>
+                              {formatDate(client.createdAt)}
+                            </td>
+                            <td>
+                              <span
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                  padding: '0.2em 0.625em', borderRadius: '9999px',
+                                  fontSize: '0.75rem', fontWeight: 600,
+                                  background: sc.bg, color: sc.color,
+                                }}
                               >
-                                {client.fullName}
-                              </Link>
-                            </td>
-                            <td className="text-secondary">{client.phone || client.phoneNumber || 'N/A'}</td>
-                            <td className="text-secondary">{client.email}</td>
-                            <td className="text-secondary font-monospace">{client.panNumber}</td>
-                            <td className="text-secondary small">{formatDate(client.createdAt)}</td>
-                            <td>
-                              <span className={`badge badge-status ${client.status.toLowerCase()}`}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: sc.color, flexShrink: 0 }}></span>
                                 {client.status}
                               </span>
                             </td>
                             <td className="text-end pe-3">
-                              <Link
-                                to={`/admin/users/${client._id}`}
-                                className="btn btn-sm btn-outline-primary me-1 py-1"
-                              >
-                                <i className="bi bi-eye"></i> View
-                              </Link>
-                              <Link
-                                to={`/admin/users/${client._id}`}
-                                className="btn btn-sm btn-outline-secondary me-2 py-1"
-                              >
-                                <i className="bi bi-pencil-square"></i> Edit
-                              </Link>
-                              <button
-                                className="btn btn-sm btn-danger py-1"
-                                onClick={() => handleDeleteUser(client._id, client.fullName)}
-                              >
-                                <i className="bi bi-trash"></i> Delete
-                              </button>
+                              <div className="d-flex align-items-center justify-content-end gap-1">
+                                <Link
+                                  to={`/admin/users/${client._id}`}
+                                  className="btn btn-sm"
+                                  style={{ background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', padding: '0.3125rem 0.625rem' }}
+                                  title="View & Edit"
+                                >
+                                  <i className="bi bi-eye me-1"></i>View
+                                </Link>
+                                <button
+                                  className="btn btn-sm"
+                                  style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', padding: '0.3125rem 0.625rem' }}
+                                  onClick={() => openDeleteModal(client._id, client.fullName)}
+                                  disabled={isDeleting}
+                                  title="Delete Client"
+                                >
+                                  {isDeleting ? (
+                                    <span style={{ width:'14px',height:'14px',border:'2px solid rgba(220,38,38,0.3)',borderTopColor:'#dc2626',borderRadius:'50%',animation:'spin 0.7s linear infinite',display:'inline-block'}} />
+                                  ) : (
+                                    <><i className="bi bi-trash3"></i></>
+                                  )}
+                                </button>
+                              </div>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </Card>
-            </div>
-          )}
-        </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

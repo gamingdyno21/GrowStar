@@ -13,83 +13,84 @@ const Sidebar = () => {
     navigate('/admin/login');
   };
 
+  const getInitials = (name) => {
+    if (!name) return 'A';
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const navItems = [
+    { to: '/admin/dashboard', icon: 'bi-grid-fill', label: 'Dashboard' },
+    { to: '/admin/users',     icon: 'bi-people-fill', label: 'Clients' },
+    { to: '/admin/messages',  icon: 'bi-chat-left-text-fill', label: 'Messages' },
+    { to: '/admin/analytics', icon: 'bi-bar-chart-line-fill', label: 'Analytics' },
+  ];
+
   return (
-    <div className={`admin-sidebar d-flex flex-column p-3 text-white ${isOpen ? 'mobile-open' : ''}`}>
-      <div className="d-flex align-items-center justify-content-between mb-2 mb-md-4 ps-1 mt-2">
-        <div className="d-flex align-items-center">
-          <BrandLogo className="me-2" width={30} height={30} />
-          <span className="fs-4 fw-bold tracking-tight text-white" style={{ letterSpacing: '-0.3px' }}>GrowStar</span>
+    <div className={`admin-sidebar ${isOpen ? 'mobile-open' : ''}`} style={{ minHeight: '100vh' }}>
+      {/* Brand + Mobile Toggle */}
+      <div className="sidebar-brand">
+        <div className="sidebar-mobile-toggle" style={{ width: '100%' }}>
+          <div className="d-flex align-items-center gap-2">
+            <BrandLogo width={28} height={28} />
+            <span className="sidebar-brand-name">GrowStar</span>
+          </div>
+          <button
+            className="btn btn-ghost d-md-none p-1 sidebar-mobile-toggle-btn"
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label="Toggle sidebar"
+            style={{ color: '#94a3b8' }}
+          >
+            <i className={`bi ${isOpen ? 'bi-x-lg' : 'bi-list'} fs-4`}></i>
+          </button>
         </div>
-        <button
-          className="btn btn-link text-white d-md-none p-0 border-0"
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          aria-label="Toggle Admin Sidebar"
-        >
-          <i className={`bi ${isOpen ? 'bi-x-lg' : 'bi-list'} fs-3`}></i>
-        </button>
       </div>
-      
-      <div className={`sidebar-content flex-column flex-grow-1 ${isOpen ? 'd-flex' : 'd-none d-md-flex'}`}>
-        <hr className="bg-secondary my-2 my-md-3" />
-        <ul className="nav nav-pills flex-column mb-auto">
-          <li className="nav-item">
-            <NavLink
-              to="/admin/dashboard"
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <i className="bi bi-grid-fill"></i>
-              Dashboard
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/admin/users"
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <i className="bi bi-people-fill"></i>
-              Clients
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/admin/messages"
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <i className="bi bi-chat-left-text-fill"></i>
-              Messages
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="/admin/analytics"
-              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => setIsOpen(false)}
-            >
-              <i className="bi bi-bar-chart-line-fill"></i>
-              Analytics
-            </NavLink>
-          </li>
+
+      {/* Nav Content */}
+      <div className={`sidebar-content ${isOpen ? 'd-flex' : 'd-none d-md-flex'} flex-column flex-grow-1`}>
+        <p className="sidebar-section-label">Navigation</p>
+
+        <ul className="sidebar-nav">
+          {navItems.map(item => (
+            <li key={item.to}>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                onClick={() => setIsOpen(false)}
+              >
+                <i className={`bi ${item.icon}`}></i>
+                <span>{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
         </ul>
-        <hr className="bg-secondary" />
-        <div className="dropdown pb-3 ps-2">
-          <div className="d-flex align-items-center text-white text-decoration-none">
-            <div className="me-2 rounded-circle bg-secondary d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
-              <i className="bi bi-person-badge fs-5"></i>
+
+        {/* User Footer */}
+        <div className="sidebar-footer">
+          <div className="d-flex align-items-center gap-2 mb-1">
+            <div className="sidebar-user-avatar">
+              {getInitials(user?.fullName || user?.email)}
             </div>
-            <div className="d-flex flex-column text-start">
-              <span className="fw-semibold text-white small leading-none">{user?.fullName || 'Administrator'}</span>
-              <span className="text-secondary small" style={{ fontSize: '0.75rem' }}>{user?.email || 'admin@growstar.com'}</span>
+            <div className="d-flex flex-column" style={{ minWidth: 0 }}>
+              <span
+                className="text-white fw-semibold"
+                style={{ fontSize: '0.8125rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {user?.fullName || 'Administrator'}
+              </span>
+              <span
+                style={{ fontSize: '0.7rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {user?.email || ''}
+              </span>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="btn btn-outline-light btn-sm w-100 mt-3 d-flex align-items-center justify-content-center border-secondary text-secondary"
+            className="sidebar-signout-btn"
           >
-            <i className="bi bi-box-arrow-left me-1"></i> Sign Out
+            <i className="bi bi-box-arrow-left"></i>
+            Sign Out
           </button>
         </div>
       </div>

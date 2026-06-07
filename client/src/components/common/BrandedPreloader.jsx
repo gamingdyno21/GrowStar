@@ -4,55 +4,39 @@ import BrandLogo from './BrandLogo';
 const BrandedPreloader = ({ onComplete }) => {
   const [phase, setPhase] = useState('pulse'); // 'pulse' | 'spin-scale'
   const [typedText, setTypedText] = useState('');
-  const [subtitleVisible, setSubtitleVisible] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
 
   const fullText = 'GROWSTAR';
 
   useEffect(() => {
-    // Phase 1: Logo pulse (Active on mount)
-    
-    // Phase 2: Logo spin/scale at 500ms
-    const spinTimer = setTimeout(() => {
-      setPhase('spin-scale');
-    }, 550);
+    // Phase 2: Logo spin/scale at 400ms
+    const spinTimer = setTimeout(() => { setPhase('spin-scale'); }, 400);
 
-    // Phase 3: Typing text starts at 950ms
+    // Phase 3: Typing text at 700ms
     const typeStartTimer = setTimeout(() => {
-      let currentIdx = 0;
+      let idx = 0;
       const typeInterval = setInterval(() => {
-        if (currentIdx <= fullText.length) {
-          setTypedText(fullText.slice(0, currentIdx));
-          currentIdx++;
+        if (idx <= fullText.length) {
+          setTypedText(fullText.slice(0, idx));
+          setProgress(Math.round((idx / fullText.length) * 100));
+          idx++;
         } else {
           clearInterval(typeInterval);
         }
-      }, 70); // 70ms per letter
-
+      }, 50);
       return () => clearInterval(typeInterval);
-    }, 950);
+    }, 700);
 
-    // Phase 4: Subtitle fades in at 1550ms
-    const subtitleTimer = setTimeout(() => {
-      setSubtitleVisible(true);
-    }, 1550);
+    // Phase 4: Fade out at 1500ms
+    const fadeOutTimer = setTimeout(() => { setFadeOut(true); }, 1500);
 
-    // Phase 5: Fade out container starts at 2000ms
-    const fadeOutTimer = setTimeout(() => {
-      setFadeOut(true);
-    }, 2000);
-
-    // Unmount/Complete call at 2500ms
-    const completeTimer = setTimeout(() => {
-      if (onComplete) {
-        onComplete();
-      }
-    }, 2500);
+    // Complete at 2000ms
+    const completeTimer = setTimeout(() => { onComplete?.(); }, 2000);
 
     return () => {
       clearTimeout(spinTimer);
       clearTimeout(typeStartTimer);
-      clearTimeout(subtitleTimer);
       clearTimeout(fadeOutTimer);
       clearTimeout(completeTimer);
     };
@@ -60,8 +44,7 @@ const BrandedPreloader = ({ onComplete }) => {
 
   return (
     <div className={`preloader-overlay ${fadeOut ? 'fade-out' : ''}`}>
-      <div className="text-center">
-        {/* Phase 1 & 2: Brand Logo */}
+      <div className="preloader-content">
         <div className="preloader-logo-wrapper">
           <BrandLogo
             width={72}
@@ -70,14 +53,13 @@ const BrandedPreloader = ({ onComplete }) => {
           />
         </div>
 
-        {/* Phase 3: Typed Brand Name */}
         <h1 className="preloader-title">
           <span>{typedText}</span>
         </h1>
 
-        {/* Phase 4: Slogan Fades In */}
-        <div className={`preloader-subtitle ${subtitleVisible ? 'visible' : ''}`}>
-          Grow Smarter. Invest Stronger.
+        {/* Progress bar */}
+        <div className="preloader-track">
+          <div className="preloader-bar" style={{ width: `${progress}%` }}></div>
         </div>
       </div>
     </div>
