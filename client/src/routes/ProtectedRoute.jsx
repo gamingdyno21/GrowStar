@@ -1,9 +1,8 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getProfileCompletionProgress } from '../utils/helpers';
 
-const ProtectedRoute = ({ children, isCompletionPage = false }) => {
+const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -19,14 +18,6 @@ const ProtectedRoute = ({ children, isCompletionPage = false }) => {
   // If not logged in, or logged in as Admin, redirect to client login
   if (!user || user.role === 'admin') {
     return <Navigate to="/login" replace />;
-  }
-
-  // Enforce profile completion workflow redirects only away from completion page if complete
-  const completionProgress = getProfileCompletionProgress(user);
-  const isProfileComplete = completionProgress === 100;
-
-  if (isProfileComplete && isCompletionPage) {
-    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

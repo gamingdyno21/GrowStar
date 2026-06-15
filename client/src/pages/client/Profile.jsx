@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import PageHeader from '../../components/common/PageHeader';
@@ -7,7 +7,7 @@ import Loader from '../../components/common/Loader';
 import { useToast } from '../../context/ToastContext';
 import userService from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
-import { formatPhone } from '../../utils/helpers';
+import { formatPhone, getProfileCompletionProgress } from '../../utils/helpers';
 
 const Profile = () => {
   const { refreshUser } = useAuth();
@@ -32,9 +32,130 @@ const Profile = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Camera capture states
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState('');
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [cameraLoading, setCameraLoading] = useState(false);
+
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
   useEffect(() => {
     fetchProfileData();
   }, []);
+
+  // Clean up camera on unmount/stream change
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  const startCamera = async () => {
+    setCameraError('');
+    setCameraActive(true);
+    setCameraLoading(true);
+    setCapturedImage(null);
+
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+
+    const constraints = {
+      video: {
+        facingMode: 'user', // prioritized front camera
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
+      audio: false
+    };
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setCameraError('Webcam/Camera is unavailable or access was denied. Standard file uploader is provided as fallback.');
+      setCameraActive(false);
+    } finally {
+      setCameraLoading(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      
+      const approxSize = (dataUrl.length * 3) / 4;
+      if (approxSize > 2 * 1024 * 1024) {
+        showToast('Captured photo exceeds the 2MB size limit.', 'error');
+        return;
+      }
+
+      setCapturedImage(dataUrl);
+      stopCamera();
+    }
+  };
+
+  const keepCapturedPhoto = () => {
+    if (capturedImage) {
+      setProfile(prev => ({
+        ...prev,
+        profilePic: capturedImage
+      }));
+      setCapturedImage(null);
+      setCameraActive(false);
+      showToast('Profile photo set successfully from camera preview!', 'success');
+    }
+  };
+
+  const calculateProgress = () => {
+    const tempUserObj = {
+      profilePic: profile.profilePic,
+      fullName: profile.fullName,
+      email: profile.email,
+      phone: profile.phoneNumber,
+      phoneNumber: profile.phoneNumber,
+      address: profile.address,
+      dob: profile.dob
+    };
+    const progress = getProfileCompletionProgress(tempUserObj);
+    
+    const missing = [];
+    if (!profile.profilePic) missing.push('Profile Photo');
+    if (!profile.fullName) missing.push('Full Name');
+    if (!profile.email) missing.push('Email');
+    if (!profile.phoneNumber) missing.push('Mobile Number');
+    if (!profile.address) missing.push('Residential Address');
+    if (!profile.dob) missing.push('Date of Birth');
+    
+    return { progress, missing };
+  };
+
+  const { progress: completionProgress, missing: missingFields } = calculateProgress();
 
   const fetchProfileData = async () => {
     setLoading(true);
@@ -140,6 +261,37 @@ const Profile = () => {
       <div className="container py-4 flex-grow-1">
         <PageHeader title="Profile & Settlement Settings" subtitle="Adjust bank credentials, personal details and view KYC status" />
 
+        {/* Profile Completion Progress Bar */}
+        {!loading && (
+          <div className="card p-3 mb-4 border-light shadow-sm bg-white rounded-3 text-start">
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <span className="fw-bold text-dark small text-uppercase" style={{ letterSpacing: '0.05em' }}>Profile Completion Status</span>
+              <span className={`badge fs-7 bg-${completionProgress === 100 ? 'success' : 'primary'}`}>{completionProgress}% Complete</span>
+            </div>
+            <div className="progress mb-2" style={{ height: '8px', background: 'rgba(0, 0, 0, 0.05)' }}>
+              <div 
+                className={`progress-bar progress-bar-striped progress-bar-animated bg-${completionProgress === 100 ? 'success' : 'warning'}`} 
+                role="progressbar" 
+                style={{ width: `${completionProgress}%` }}
+                aria-valuenow={completionProgress}
+                aria-valuemin="0"
+                aria-valuemax="100"
+              ></div>
+            </div>
+            {completionProgress < 100 ? (
+              <span className="text-secondary small" style={{ fontSize: '0.78rem' }}>
+                <i className="bi bi-info-circle-fill text-warning me-1"></i>
+                Please fill in your Profile Photo and Date of Birth to complete your profile (Currently missing: {missingFields.join(', ')}).
+              </span>
+            ) : (
+              <span className="text-success small fw-semibold" style={{ fontSize: '0.78rem' }}>
+                <i className="bi bi-check-circle-fill me-1"></i>
+                Your profile is fully complete! All platform features are unlocked.
+              </span>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <Loader />
         ) : (
@@ -152,35 +304,130 @@ const Profile = () => {
 
                 <form onSubmit={handleSubmit} className="text-start">
                   
-                  {/* Photo upload preview */}
-                  <div className="d-flex align-items-center mb-4 p-3 bg-light rounded-3 border">
-                    <div className="me-3">
-                      {profile.profilePic ? (
-                        <img
-                          src={profile.profilePic}
-                          alt="Profile Pic"
-                          className="rounded-circle border object-fit-cover shadow"
-                          style={{ width: '70px', height: '70px' }}
-                        />
-                      ) : (
-                        <div className="rounded-circle bg-primary-subtle text-primary border d-flex align-items-center justify-content-center shadow" style={{ width: '70px', height: '70px' }}>
-                          <i className="bi bi-person fs-2" />
+                  {/* Unified Photo Upload & Camera Capture Section */}
+                  <div className="mb-4 p-3 bg-light rounded-3 border">
+                    <span className="d-block fw-semibold text-dark small mb-3">Profile Photo</span>
+                    
+                    <div className="d-flex flex-wrap align-items-center gap-4">
+                      
+                      {/* Photo preview or video element */}
+                      <div className="position-relative">
+                        {cameraActive ? (
+                          <div className="position-relative overflow-hidden border rounded-3 bg-black shadow-sm" style={{ width: '160px', height: '120px' }}>
+                            {cameraLoading && (
+                              <div className="position-absolute top-50 start-50 translate-middle text-white text-center" style={{ fontSize: '0.75rem' }}>
+                                <div className="spinner-border spinner-border-sm text-primary mb-1"></div>
+                              </div>
+                            )}
+                            <video 
+                              ref={videoRef} 
+                              autoPlay 
+                              playsInline 
+                              muted 
+                              className="w-100 h-100 object-fit-cover"
+                            />
+                            <canvas ref={canvasRef} style={{ display: 'none' }} />
+                          </div>
+                        ) : capturedImage ? (
+                          <img
+                            src={capturedImage}
+                            alt="Captured preview"
+                            className="rounded-3 border object-fit-cover shadow-sm"
+                            style={{ width: '160px', height: '120px' }}
+                          />
+                        ) : profile.profilePic ? (
+                          <img
+                            src={profile.profilePic}
+                            alt="Profile Pic"
+                            className="rounded-circle border object-fit-cover shadow-sm"
+                            style={{ width: '80px', height: '80px' }}
+                          />
+                        ) : (
+                          <div className="rounded-circle bg-primary-subtle text-primary border d-flex align-items-center justify-content-center shadow-sm" style={{ width: '80px', height: '80px' }}>
+                            <i className="bi bi-person fs-2" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Photo capture and upload actions */}
+                      <div style={{ flex: 1, minWidth: '200px' }}>
+                        
+                        {/* Interactive state buttons */}
+                        <div className="d-flex flex-wrap gap-2 align-items-center mb-2">
+                          {!cameraActive && !capturedImage && (
+                            <button 
+                              type="button" 
+                              className="btn btn-sm btn-primary px-3" 
+                              onClick={startCamera}
+                            >
+                              <i className="bi bi-camera-fill me-1"></i> Take Photo
+                            </button>
+                          )}
+
+                          {cameraActive && (
+                            <>
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-success px-3" 
+                                onClick={capturePhoto}
+                                disabled={cameraLoading}
+                              >
+                                <i className="bi bi-circle-fill me-1"></i> Capture
+                              </button>
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-outline-secondary px-3" 
+                                onClick={stopCamera}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+
+                          {capturedImage && (
+                            <>
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-success px-3" 
+                                onClick={keepCapturedPhoto}
+                              >
+                                <i className="bi bi-check-lg"></i> Keep Photo
+                              </button>
+                              <button 
+                                type="button" 
+                                className="btn btn-sm btn-outline-danger px-3" 
+                                onClick={() => { setCapturedImage(null); startCamera(); }}
+                              >
+                                <i className="bi bi-arrow-counterclockwise"></i> Retake
+                              </button>
+                            </>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div>
-                      <span className="d-block fw-semibold text-dark small mb-1">Profile Photo</span>
-                      <label className="btn btn-sm btn-outline-primary position-relative px-3 py-1">
-                        Choose Photo
-                        <input
-                          type="file"
-                          className="position-absolute opacity-0 start-0 top-0 w-100 h-100"
-                          style={{ cursor: 'pointer' }}
-                          accept="image/*"
-                          onChange={handleImageChange}
-                        />
-                      </label>
-                      <span className="d-block text-secondary small mt-1" style={{ fontSize: '0.7rem' }}>Max size 2MB (JPEG/PNG)</span>
+
+                        {/* Fallback File Uploader */}
+                        {(!cameraActive && !capturedImage) && (
+                          <div>
+                            {cameraError && (
+                              <div className="alert alert-warning small p-1.5 mb-2" style={{ fontSize: '0.72rem' }}>
+                                <i className="bi bi-exclamation-triangle-fill"></i> {cameraError}
+                              </div>
+                            )}
+                            <label className="btn btn-sm btn-outline-secondary position-relative px-3 py-1">
+                              Choose Photo
+                              <input
+                                type="file"
+                                className="position-absolute opacity-0 start-0 top-0 w-100 h-100"
+                                style={{ cursor: 'pointer' }}
+                                accept="image/*"
+                                onChange={handleImageChange}
+                              />
+                            </label>
+                            <span className="d-block text-secondary small mt-1.5" style={{ fontSize: '0.68rem' }}>Max size 2MB (JPEG/PNG)</span>
+                          </div>
+                        )}
+
+                      </div>
+
                     </div>
                   </div>
 

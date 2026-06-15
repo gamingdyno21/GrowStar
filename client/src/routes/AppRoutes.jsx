@@ -13,7 +13,6 @@ import ClientDashboard from '../pages/client/ClientDashboard';
 import Profile from '../pages/client/Profile';
 import Documents from '../pages/client/Documents';
 import Messages from '../pages/client/Messages';
-import CompleteProfile from '../pages/client/CompleteProfile';
 
 // Admin Pages
 import AdminLogin from '../pages/admin/AdminLogin';
@@ -41,14 +40,6 @@ const AppRoutes = () => {
       <Route path="/admin/login" element={<AdminLogin />} />
 
       {/* Protected Client Dashboard Routes */}
-      <Route
-        path="/complete-profile"
-        element={
-          <ProtectedRoute isCompletionPage={true}>
-            <CompleteProfile />
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/dashboard"
         element={

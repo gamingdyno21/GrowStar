@@ -64,7 +64,7 @@ const Navbar = () => {
               </div>
               <span className="fw-bold font-monospace" style={{ fontSize: '0.75rem' }}>{completionProgress}%</span>
               <Link 
-                to="/complete-profile" 
+                to="/profile" 
                 className="btn btn-xs btn-warning px-2.5 py-0.5 rounded fw-bold ms-2"
                 style={{ fontSize: '0.72rem', color: '#1e293b', border: '1px solid rgba(0,0,0,0.1)' }}
               >
