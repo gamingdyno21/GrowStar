@@ -5,7 +5,7 @@ import Card from '../../components/common/Card';
 import Loader from '../../components/common/Loader';
 import { useToast } from '../../context/ToastContext';
 import userService from '../../services/userService';
-import { formatCurrency, formatDate } from '../../utils/helpers';
+import { formatCurrency, formatDate, getProfileCompletionProgress } from '../../utils/helpers';
 import { useAuth } from '../../context/AuthContext';
 
 /* ── SVG Chart ──────────────────────────────────────────────── */
@@ -69,6 +69,11 @@ const ClientDashboard = () => {
   const [profile, setProfile] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Profile completion derived from live user context
+  const completionProgress = getProfileCompletionProgress(user);
+  const isProfileComplete = completionProgress === 100;
 
   useEffect(() => {
     refreshUser();
@@ -169,6 +174,86 @@ const ClientDashboard = () => {
               <span style={{ fontSize: '0.8125rem', opacity: 0.85 }}>
                 KYC verification flagged errors. Please update your profile or contact support.
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Profile Completion Banner — shown until profile is 100% or dismissed */}
+        {!isProfileComplete && !bannerDismissed && (
+          <div
+            className="d-flex align-items-start align-items-sm-center gap-3 mb-4 p-3 rounded-3 animate-fade"
+            style={{
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: '#fff',
+              boxShadow: '0 4px 20px rgba(37,99,235,0.25)',
+            }}
+          >
+            {/* Icon */}
+            <div
+              style={{
+                width: '42px', height: '42px', borderRadius: '10px',
+                background: 'rgba(255,255,255,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, fontSize: '1.25rem',
+              }}
+            >
+              <i className="bi bi-person-fill-exclamation" />
+            </div>
+
+            {/* Text & Progress */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.15rem' }}>
+                Complete Your Profile to Unlock All Features
+              </strong>
+              <span style={{ fontSize: '0.8125rem', opacity: 0.88 }}>
+                Please complete your profile to unlock all platform features — investment requests, withdrawals, and advisory queries require a complete profile.
+              </span>
+              {/* Progress bar */}
+              <div style={{ marginTop: '0.625rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <span style={{ fontSize: '0.72rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Profile Completion</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800 }}>{completionProgress}%</span>
+                </div>
+                <div style={{ height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '99px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${completionProgress}%`,
+                      background: completionProgress < 50 ? '#fbbf24' : completionProgress < 80 ? '#34d399' : '#a7f3d0',
+                      borderRadius: '99px',
+                      transition: 'width 0.6s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* CTA + Dismiss */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end', flexShrink: 0 }}>
+              <a
+                href="/profile"
+                className="btn btn-sm"
+                style={{
+                  background: '#fff', color: '#1d4ed8', fontWeight: 700,
+                  fontSize: '0.8rem', padding: '0.35rem 0.875rem',
+                  borderRadius: '8px', whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                }}
+              >
+                <i className="bi bi-arrow-right-circle-fill me-1" />
+                Complete Now
+              </a>
+              <button
+                type="button"
+                onClick={() => setBannerDismissed(true)}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', padding: 0,
+                }}
+              >
+                Dismiss
+              </button>
             </div>
           </div>
         )}

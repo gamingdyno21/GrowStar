@@ -82,7 +82,7 @@ const Profile = () => {
       }
     } catch (err) {
       console.error('Camera access error:', err);
-      setCameraError('Webcam/Camera is unavailable or access was denied. Standard file uploader is provided as fallback.');
+      setCameraError('Camera access is required to capture your profile photo. Please enable camera permissions or use a device with a camera.');
       setCameraActive(false);
     } finally {
       setCameraLoading(false);
@@ -187,25 +187,6 @@ const Profile = () => {
     let formatted = value;
     if (name === 'phoneNumber') formatted = formatPhone(value);
     setProfile({ ...profile, [name]: formatted });
-  };
-
-  // Image Upload handler (Base64)
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        showToast('Selected image is too large. Max limit is 2MB.', 'error');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile(prev => ({
-          ...prev,
-          profilePic: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -404,25 +385,10 @@ const Profile = () => {
                           )}
                         </div>
 
-                        {/* Fallback File Uploader */}
-                        {(!cameraActive && !capturedImage) && (
-                          <div>
-                            {cameraError && (
-                              <div className="alert alert-warning small p-1.5 mb-2" style={{ fontSize: '0.72rem' }}>
-                                <i className="bi bi-exclamation-triangle-fill"></i> {cameraError}
-                              </div>
-                            )}
-                            <label className="btn btn-sm btn-outline-secondary position-relative px-3 py-1">
-                              Choose Photo
-                              <input
-                                type="file"
-                                className="position-absolute opacity-0 start-0 top-0 w-100 h-100"
-                                style={{ cursor: 'pointer' }}
-                                accept="image/*"
-                                onChange={handleImageChange}
-                              />
-                            </label>
-                            <span className="d-block text-secondary small mt-1.5" style={{ fontSize: '0.68rem' }}>Max size 2MB (JPEG/PNG)</span>
+                        {/* Camera Error Message Display */}
+                        {cameraError && !cameraActive && !capturedImage && (
+                          <div className="alert alert-danger small p-2" style={{ fontSize: '0.75rem' }}>
+                            <i className="bi bi-exclamation-triangle-fill me-1.5"></i> {cameraError}
                           </div>
                         )}
 
