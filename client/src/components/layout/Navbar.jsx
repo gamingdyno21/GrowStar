@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import BrandLogo from '../common/BrandLogo';
+import { getProfileCompletionProgress } from '../../utils/helpers';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -28,8 +29,52 @@ const Navbar = () => {
     { to: '/profile',         icon: 'bi-person-fill',   label: 'Profile'    },
   ];
 
+  const completionProgress = getProfileCompletionProgress(user);
+  const showBanner = user && user.role !== 'admin' && completionProgress < 100;
+
   return (
-    <nav className="client-navbar navbar navbar-expand-lg">
+    <>
+      {showBanner && (
+        <div 
+          className="w-100 py-2.5 px-3 border-bottom text-center animate-fade" 
+          style={{ 
+            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', 
+            borderColor: '#fde047', 
+            fontSize: '0.8125rem',
+            color: '#854d0e',
+            zIndex: 1050,
+            position: 'relative'
+          }}
+        >
+          <div className="container d-flex flex-wrap align-items-center justify-content-center gap-2">
+            <span className="fw-semibold">
+              <i className="bi bi-exclamation-triangle-fill me-1.5" style={{ color: '#d97706' }}></i>
+              Please complete your profile to unlock all platform features.
+            </span>
+            <div className="d-flex align-items-center gap-2">
+              <div className="progress" style={{ width: '80px', height: '6px', background: 'rgba(0, 0, 0, 0.08)', borderRadius: '3px' }}>
+                <div 
+                  className="progress-bar bg-warning" 
+                  role="progressbar" 
+                  style={{ width: `${completionProgress}%` }}
+                  aria-valuenow={completionProgress}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                ></div>
+              </div>
+              <span className="fw-bold font-monospace" style={{ fontSize: '0.75rem' }}>{completionProgress}%</span>
+              <Link 
+                to="/complete-profile" 
+                className="btn btn-xs btn-warning px-2.5 py-0.5 rounded fw-bold ms-2"
+                style={{ fontSize: '0.72rem', color: '#1e293b', border: '1px solid rgba(0,0,0,0.1)' }}
+              >
+                Complete Profile
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+      <nav className="client-navbar navbar navbar-expand-lg">
       <div className="container" style={{ maxWidth: '1280px', padding: '0 1.5rem' }}>
         {/* Brand */}
         <Link className="client-brand" to="/dashboard" onClick={() => setIsOpen(false)}>
@@ -96,6 +141,7 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
+  </>
   );
 };
 

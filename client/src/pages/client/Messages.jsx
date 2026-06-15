@@ -7,11 +7,14 @@ import Loader from '../../components/common/Loader';
 import { useToast } from '../../context/ToastContext';
 import messageService from '../../services/messageService';
 import { useAuth } from '../../context/AuthContext';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, getProfileCompletionProgress } from '../../utils/helpers';
 
 const Messages = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  
+  const completionProgress = getProfileCompletionProgress(user);
+  const isProfileComplete = completionProgress === 100;
   
   // State
   const [messages, setMessages] = useState([]);
@@ -123,6 +126,13 @@ const Messages = () => {
                 </div>
               )}
 
+              {!isProfileComplete && (
+                <div className="alert alert-danger py-2.5 small mb-3 border-0">
+                  <i className="bi bi-lock-fill me-1.5"></i>
+                  Please complete your profile to unlock support queries, deposit confirmations, and withdrawal requests.
+                </div>
+              )}
+
               <form onSubmit={handleSend}>
                 <div className="mb-3">
                   <label className="form-label">Request Type</label>
@@ -130,7 +140,7 @@ const Messages = () => {
                     className="form-select"
                     value={type}
                     onChange={(e) => setType(e.target.value)}
-                    disabled={submitting}
+                    disabled={submitting || !isProfileComplete}
                   >
                     <option value="Support Query">Support Query</option>
                     <option value="Withdrawal Request">Withdrawal Request</option>
@@ -143,18 +153,18 @@ const Messages = () => {
                   <textarea
                     className="form-control"
                     rows="5"
-                    placeholder="Provide details about your query..."
+                    placeholder={isProfileComplete ? "Provide details about your query..." : "Please complete your profile to unlock and write message details."}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    disabled={submitting}
-                    required
+                    disabled={submitting || !isProfileComplete}
+                    required={isProfileComplete}
                   ></textarea>
                 </div>
 
                 <button
                   type="submit"
                   className="btn btn-primary w-100 py-2.5 mt-2"
-                  disabled={submitting || !message.trim()}
+                  disabled={submitting || !message.trim() || !isProfileComplete}
                 >
                   {submitting ? 'Sending Request...' : 'Dispatch Request'}
                 </button>

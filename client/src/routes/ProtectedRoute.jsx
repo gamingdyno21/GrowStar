@@ -21,19 +21,12 @@ const ProtectedRoute = ({ children, isCompletionPage = false }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Enforce profile completion workflow
+  // Enforce profile completion workflow redirects only away from completion page if complete
   const completionProgress = getProfileCompletionProgress(user);
   const isProfileComplete = completionProgress === 100;
 
-  if (!isProfileComplete) {
-    if (!isCompletionPage) {
-      return <Navigate to="/complete-profile" replace />;
-    }
-  } else {
-    // If profile is fully complete and trying to access completion page, redirect to dashboard
-    if (isCompletionPage) {
-      return <Navigate to="/dashboard" replace />;
-    }
+  if (isProfileComplete && isCompletionPage) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
