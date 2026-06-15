@@ -210,6 +210,8 @@ const register = async (req, res) => {
         aadhaarNumber: user.aadhaarNumber,
         status: user.status,
         role: user.role,
+        profilePic: user.profilePic || "",
+        dob: user.dob || "",
         token: generateToken(user._id),
       },
     });
@@ -261,6 +263,8 @@ const login = async (req, res) => {
           aadhaarNumber: user.aadhaarNumber,
           status: user.status,
           role: user.role,
+          profilePic: user.profilePic || "",
+          dob: user.dob || "",
           token: generateToken(user._id),
         },
       });

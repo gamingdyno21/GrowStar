@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
     aadhaarNumber: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: true },
     profilePic: { type: String, default: "" },
+    dob: { type: String, default: "" },
     bankDetails: {
       bankName: { type: String, default: "" },
       accountNumber: { type: String, default: "" },

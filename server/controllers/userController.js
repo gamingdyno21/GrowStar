@@ -37,6 +37,10 @@ const updateUserProfile = async (req, res) => {
         user.profilePic = req.body.profilePic;
       }
 
+      if (req.body.dob !== undefined) {
+        user.dob = req.body.dob;
+      }
+
       if (req.body.bankDetails) {
         user.bankDetails = {
           bankName: req.body.bankDetails.bankName !== undefined ? req.body.bankDetails.bankName : user.bankDetails.bankName,
@@ -74,6 +78,7 @@ const updateUserProfile = async (req, res) => {
           status: updatedUser.status,
           role: updatedUser.role,
           profilePic: updatedUser.profilePic,
+          dob: updatedUser.dob,
           bankDetails: updatedUser.bankDetails,
         },
       });

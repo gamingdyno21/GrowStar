@@ -21,6 +21,7 @@ const Profile = () => {
     aadhaarNumber: '',
     status: '',
     profilePic: '',
+    dob: '',
     bankName: '',
     accountNumber: '',
     ifscCode: ''
@@ -46,6 +47,7 @@ const Profile = () => {
           ...u,
           phoneNumber: u.phone || u.phoneNumber || '',
           profilePic: u.profilePic || '',
+          dob: u.dob || '',
           bankName: u.bankDetails?.bankName || '',
           accountNumber: u.bankDetails?.accountNumber || '',
           ifscCode: u.bankDetails?.ifscCode || ''
@@ -110,6 +112,7 @@ const Profile = () => {
         phone: profile.phoneNumber,
         address: profile.address,
         profilePic: profile.profilePic,
+        dob: profile.dob,
         bankDetails: {
           bankName: profile.bankName,
           accountNumber: profile.accountNumber,
@@ -182,13 +185,23 @@ const Profile = () => {
                   </div>
 
                   <div className="row">
-                    <div className="col-md-12 mb-3">
+                    <div className="col-md-6 mb-3">
                       <label className="form-label fw-semibold text-secondary small">Full Name</label>
                       <input
                         type="text"
                         name="fullName"
                         className="form-control"
                         value={profile.fullName}
+                        onChange={handleChange}
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label fw-semibold text-secondary small">Date of Birth</label>
+                      <input
+                        type="date"
+                        name="dob"
+                        className="form-control"
+                        value={profile.dob}
                         onChange={handleChange}
                       />
                     </div>
