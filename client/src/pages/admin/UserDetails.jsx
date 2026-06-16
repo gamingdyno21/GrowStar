@@ -14,6 +14,7 @@ const UserDetails = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState('dossier'); // dossier, portfolio, investments, profits, ledger
+  const [showFullPhoto, setShowFullPhoto] = useState(false);
 
   // Portfolio Summary Form State
   const [portfolioForm, setPortfolioForm] = useState({
@@ -337,14 +338,29 @@ const UserDetails = () => {
                     <div className="col-lg-6">
                       <Card title="KYC Dossier & Credentials">
                         <div className="list-group list-group-flush text-start">
-                          {data.profile.profilePic && (
+                          {data.profile.profilePic ? (
                             <div className="list-group-item bg-transparent px-0 border-light text-center py-3">
                               <img
                                 src={data.profile.profilePic}
                                 alt="Profile Avatar"
                                 className="rounded-circle border object-fit-cover shadow"
-                                style={{ width: '100px', height: '100px' }}
+                                style={{ width: '100px', height: '100px', cursor: 'pointer' }}
+                                onClick={() => setShowFullPhoto(true)}
                               />
+                              <div className="text-secondary small mt-2">
+                                <button 
+                                  type="button" 
+                                  className="btn btn-sm btn-link text-decoration-none p-0 fw-semibold text-primary" 
+                                  onClick={() => setShowFullPhoto(true)}
+                                >
+                                  <i className="bi bi-zoom-in me-1"></i> View Full Size Photo
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="list-group-item bg-transparent px-0 border-light text-center py-3 text-secondary small">
+                              <i className="bi bi-person-circle fs-3 d-block mb-1 text-muted"></i>
+                              No profile photo uploaded.
                             </div>
                           )}
                           <div className="list-group-item bg-transparent px-0 border-light">
@@ -941,6 +957,43 @@ const UserDetails = () => {
           <Footer adminMode={true} />
         </div>
       </div>
+      {/* Full Size Profile Photo Modal */}
+      {showFullPhoto && data?.profile?.profilePic && (
+        <div 
+          className="modal show d-block animate-fade" 
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', zIndex: 2000, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+          onClick={() => setShowFullPhoto(false)}
+        >
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div className="modal-header">
+                <h5 className="modal-title">Full Size Profile Photo</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowFullPhoto(false)}
+                ></button>
+              </div>
+              <div className="modal-body text-center bg-dark p-3">
+                <img 
+                  src={data.profile.profilePic} 
+                  alt="Full Size Profile Avatar" 
+                  style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} 
+                />
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowFullPhoto(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
