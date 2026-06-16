@@ -72,8 +72,8 @@ const ClientDashboard = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   // Profile completion derived from live user context
-  const completionProgress = getProfileCompletionProgress(user);
-  const isProfileComplete = completionProgress === 100;
+  const isProfileComplete = !!user?.profileCompleted;
+  const completionProgress = isProfileComplete ? 100 : getProfileCompletionProgress(user);
 
   useEffect(() => {
     refreshUser();
@@ -181,7 +181,7 @@ const ClientDashboard = () => {
         {/* Profile Completion Banner — shown until profile is 100% or dismissed */}
         {!isProfileComplete && !bannerDismissed && (
           <div
-            className="d-flex align-items-start align-items-sm-center gap-3 mb-4 p-3 rounded-3 animate-fade"
+            className="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3 mb-4 p-3 rounded-3 animate-fade"
             style={{
               background: 'linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%)',
               border: '1px solid rgba(255,255,255,0.15)',
@@ -230,7 +230,7 @@ const ClientDashboard = () => {
             </div>
 
             {/* CTA + Dismiss */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end', flexShrink: 0 }}>
+             <div className="d-flex flex-row flex-md-column gap-2 align-items-center align-items-md-end align-self-stretch align-self-md-auto justify-content-between flex-shrink-0 mt-2 mt-md-0">
               <a
                 href="/profile"
                 className="btn btn-sm"

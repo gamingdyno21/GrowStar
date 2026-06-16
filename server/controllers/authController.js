@@ -212,6 +212,7 @@ const register = async (req, res) => {
         role: user.role,
         profilePic: user.profilePic || "",
         dob: user.dob || "",
+        profileCompleted: user.profileCompleted || false,
         token: generateToken(user._id),
       },
     });
@@ -265,6 +266,7 @@ const login = async (req, res) => {
           role: user.role,
           profilePic: user.profilePic || "",
           dob: user.dob || "",
+          profileCompleted: user.profileCompleted || false,
           token: generateToken(user._id),
         },
       });

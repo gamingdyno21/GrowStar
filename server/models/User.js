@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     profilePic: { type: String, default: "" },
     dob: { type: String, default: "" },
+    profileCompleted: { type: Boolean, default: false },
     bankDetails: {
       bankName: { type: String, default: "" },
       accountNumber: { type: String, default: "" },
@@ -53,6 +54,20 @@ userSchema.pre('save', async function (next) {
   }
   const salt = await bcrypt.genSalt(10);
   this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
+  next();
+});
+
+// Auto-evaluate profileCompleted status before saving
+userSchema.pre('save', function (next) {
+  const fields = [
+    this.profilePic,
+    this.fullName,
+    this.email,
+    this.phoneNumber,
+    this.address,
+    this.dob
+  ];
+  this.profileCompleted = fields.every(val => val && String(val).trim() !== '');
   next();
 });
 

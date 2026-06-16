@@ -223,18 +223,23 @@ const Profile = () => {
       });
 
       if (res.success) {
+        setErrorMsg('');
         setSuccessMsg('Profile updated successfully!');
+        showToast('Profile updated successfully!', 'success');
         refreshUser();
       } else {
-        setErrorMsg(res.message || 'Profile update failed.');
+        const failMsg = res.message || 'Profile update failed.';
+        setErrorMsg(failMsg);
+        showToast(failMsg, 'error');
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || 'Error saving profile.');
+      const errMsg = err.response?.data?.message || err.message || 'Error saving profile.';
+      setErrorMsg(errMsg);
+      showToast(errMsg, 'error');
     } finally {
       setUpdating(false);
     }
   };
-
   return (
     <div className="bg-light min-vh-100 d-flex flex-column">
       <Navbar />

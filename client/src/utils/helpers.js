@@ -35,6 +35,7 @@ export const formatPhone = (val) => {
 
 export const getProfileCompletionProgress = (user) => {
   if (!user) return 0;
+  if (user.profileCompleted) return 100;
   
   // Calculate completion percentage based on the required fields
   const fields = [

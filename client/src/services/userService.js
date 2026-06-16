@@ -10,7 +10,7 @@ const getAuthHeaders = () => {
 };
 
 const getProfile = async () => {
-  const response = await axios.get('/api/user/profile', getAuthHeaders());
+  const response = await axios.get(`/api/user/profile?_t=${Date.now()}`, getAuthHeaders());
   return response.data;
 };
 

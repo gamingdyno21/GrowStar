@@ -1645,3 +1645,161 @@ body {
 /* Override Bootstrap bg-light */
 .bg-light { background-color: var(--gray-50) !important; }
 .border-light { border-color: var(--border-color) !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE DRAWER & RESPONSIVE NAVIGATION
+   ══════════════════════════════════════════════════════════════ */
+.mobile-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1040;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.mobile-drawer-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 290px;
+  max-width: 85vw;
+  background: #ffffff;
+  z-index: 1050;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -6px 0 30px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-drawer.open {
+  transform: translateX(0);
+}
+
+.mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.mobile-drawer-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--gray-500);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  transition: background-color 0.2s, color 0.2s;
+  padding: 0;
+}
+
+.mobile-drawer-close-btn:hover {
+  background-color: var(--gray-100);
+  color: var(--text-primary);
+}
+
+.mobile-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mobile-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mobile-drawer-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: var(--radius-md);
+  color: var(--gray-600);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  transition: all 0.15s ease;
+}
+
+.mobile-drawer-nav-link:hover {
+  background-color: var(--gray-100);
+  color: var(--text-primary);
+}
+
+.mobile-drawer-nav-link.active {
+  background-color: rgba(37, 99, 235, 0.08);
+  color: var(--brand-secondary);
+  font-weight: 600;
+}
+
+.mobile-drawer-footer {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+/* Responsive Overrides & Fixes */
+@media (max-width: 991.98px) {
+  .client-navbar .navbar-collapse {
+    display: none !important;
+  }
+}
+
+@media (min-width: 992px) {
+  .mobile-drawer-overlay,
+  .mobile-drawer {
+    display: none !important;
+  }
+}
+
+/* Stack cards responsively on narrow viewports */
+@media (max-width: 575.98px) {
+  .metric-card {
+    padding: 1rem;
+  }
+  .page-header h1, .page-header .page-title {
+    font-size: 1.25rem;
+  }
+}

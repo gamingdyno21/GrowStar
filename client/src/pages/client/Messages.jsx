@@ -13,8 +13,8 @@ const Messages = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   
-  const completionProgress = getProfileCompletionProgress(user);
-  const isProfileComplete = completionProgress === 100;
+  const isProfileComplete = !!user?.profileCompleted;
+  const completionProgress = isProfileComplete ? 100 : getProfileCompletionProgress(user);
   
   // State
   const [messages, setMessages] = useState([]);
