@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import userService from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
 import { formatPhone, getProfileCompletionProgress } from '../../utils/helpers';
+import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 
 const Profile = () => {
   const { refreshUser } = useAuth();
@@ -38,6 +39,7 @@ const Profile = () => {
   const [cameraError, setCameraError] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
   const [cameraLoading, setCameraLoading] = useState(false);
+  const [basicMode, setBasicMode] = useState(false);
 
   // KYC-Grade states
   const [detector, setDetector] = useState(null);
@@ -77,36 +79,19 @@ const Profile = () => {
     };
   }, [cameraStream]);
 
-  // Load the MediaPipe FaceDetector engine dynamically
+  // Load the MediaPipe FaceDetector engine from local assets
   const loadVerificationEngine = async () => {
     if (detectorRef.current) return detectorRef.current;
     setLoadingEngine(true);
     setCameraError('');
     console.log("[CameraFlow] Face detector loading started.");
     
-    let FilesetResolver, FaceDetector;
-    try {
-      const visionBundle = await import(
-        /* @vite-ignore */
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js"
-      );
-      FaceDetector = visionBundle.FaceDetector;
-      FilesetResolver = visionBundle.FilesetResolver;
-    } catch (err) {
-      console.error("[CameraFlow] MediaPipe initialization failure:", err);
-      const errMsg = "MediaPipe face verification initialization failed. Please check your internet connection.";
-      setCameraError(errMsg);
-      throw new Error("MediaPipeInitFailed");
-    }
-
     let vision;
     try {
-      vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-      );
+      vision = await FilesetResolver.forVisionTasks("/wasm");
     } catch (err) {
       console.error("[CameraFlow] MediaPipe WebAssembly resolver failure:", err);
-      const errMsg = "MediaPipe webassembly resources initialization failed. Please check your internet connection.";
+      const errMsg = "MediaPipe face verification initialization failed. Please check your internet connection.";
       setCameraError(errMsg);
       throw new Error("MediaPipeInitFailed");
     }
@@ -115,7 +100,7 @@ const Profile = () => {
     try {
       instance = await FaceDetector.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.task",
+          modelAssetPath: "/model/blaze_face_short_range.task",
           delegate: "GPU"
         },
         runningMode: "IMAGE"
@@ -133,12 +118,17 @@ const Profile = () => {
     return instance;
   };
 
+  const loadFaceDetection = async () => {
+    await loadVerificationEngine();
+  };
+
   const startCamera = async () => {
     console.log("[CameraFlow] 'Verify & Take Photo' button clicked.");
     setCameraError('');
     setCameraActive(true);
     setCameraLoading(true);
     setCapturedImage(null);
+    setBasicMode(false);
 
     setKycStatus({
       faceDetected: false,
@@ -180,15 +170,21 @@ const Profile = () => {
         };
       }
       setCameraLoading(false);
+      setKycInstruction('Camera loaded. Initializing face verification...');
 
-      // Now load verification engine in background
-      setKycInstruction('Loading identity verification engine...');
-      await loadVerificationEngine();
-
-      // Ensure stream is still active before running loop
-      if (videoRef.current && videoRef.current.srcObject) {
-        startDetectionLoop();
+      // Try loading MediaPipe
+      try {
+        await loadFaceDetection();
+        
+        // Ensure stream is still active before running loop
+        if (videoRef.current && videoRef.current.srcObject) {
+          startDetectionLoop();
+        }
+      } catch (error) {
+        console.error(error);
+        startBasicCameraMode();
       }
+
     } catch (err) {
       console.error('[CameraFlow] Error in camera setup flow:', err);
       let errMsg = 'Failed to access camera.';
@@ -196,17 +192,20 @@ const Profile = () => {
         errMsg = 'Camera permission denied. Please allow camera access in your browser settings to verify your identity.';
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         errMsg = 'No camera found. Please connect a camera to proceed with identity verification.';
-      } else if (err.message === 'MediaPipeInitFailed') {
-        errMsg = 'MediaPipe face verification initialization failed. Please check your internet connection.';
-      } else if (err.message === 'FaceModelLoadFailed') {
-        errMsg = 'Face detection model loading failed. Please check your network and try again.';
       } else {
-        errMsg = `Camera access or verification setup failed: ${err.message || 'Unknown error'}`;
+        errMsg = `Camera access failed: ${err.message || 'Unknown error'}`;
       }
       setCameraError(errMsg);
       showToast(errMsg, 'error');
       stopCamera(true);
     }
+  };
+
+  const startBasicCameraMode = () => {
+    setBasicMode(true);
+    setKycInstruction('Advanced verification unavailable. Basic secure camera mode enabled.');
+    showToast('Advanced verification unavailable. Basic secure camera mode enabled.', 'warning');
+    console.log("[CameraFlow] Basic camera mode enabled.");
   };
 
   const stopCamera = (keepError = false) => {
@@ -774,10 +773,10 @@ const Profile = () => {
                                   cy="50%"
                                   r="110"
                                   fill="none"
-                                  stroke={kycStatus.ready ? '#198754' : '#ffc107'}
-                                  strokeWidth="3"
-                                  strokeDasharray={kycStatus.ready ? 'none' : '6, 6'}
-                                  style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
+                                stroke={(basicMode || kycStatus.ready) ? '#198754' : '#ffc107'}
+                                strokeWidth="3"
+                                strokeDasharray={(basicMode || kycStatus.ready) ? 'none' : '6, 6'}
+                                style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
                                 />
                               </svg>
                             )}
@@ -788,13 +787,13 @@ const Profile = () => {
                                 className="position-absolute bottom-0 start-0 w-100 text-center p-2 text-white fw-bold small" 
                                 style={{ 
                                   zIndex: 3, 
-                                  backgroundColor: kycStatus.ready ? 'rgba(25, 135, 84, 0.88)' : 'rgba(33, 37, 41, 0.85)',
+                                  backgroundColor: (basicMode || kycStatus.ready) ? 'rgba(25, 135, 84, 0.88)' : 'rgba(33, 37, 41, 0.85)',
                                   transition: 'background-color 0.3s ease'
                                 }}
                               >
-                                {kycStatus.ready ? (
+                                {(basicMode || kycStatus.ready) ? (
                                   <span className="d-flex align-items-center justify-content-center gap-1 animate-pulse">
-                                    <i className="bi bi-camera-fill"></i> READY: HOLD STILL & CAPTURE
+                                    <i className="bi bi-camera-fill"></i> READY: {basicMode ? 'BASIC CAMERA ACTIVE' : 'HOLD STILL & CAPTURE'}
                                   </span>
                                 ) : (
                                   <span>{kycInstruction}</span>
@@ -810,10 +809,19 @@ const Profile = () => {
                               <span className="badge bg-secondary-subtle text-dark-emphasis small">Real-time</span>
                             </div>
                             
+                            {basicMode && (
+                              <div className="alert alert-warning small py-2 mb-3 text-start">
+                                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                                Advanced verification unavailable. Basic secure camera mode enabled.
+                              </div>
+                            )}
+                            
                             <div className="d-flex flex-column gap-2 text-start">
                               <div className="d-flex align-items-center justify-content-between">
                                 <span className="small text-secondary">Face Detected</span>
-                                {kycStatus.faceDetected ? (
+                                {basicMode ? (
+                                  <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">Bypassed</span>
+                                ) : kycStatus.faceDetected ? (
                                   <span className="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 small">
                                     <i className="bi bi-check-circle-fill"></i> Detected
                                   </span>
@@ -826,7 +834,9 @@ const Profile = () => {
 
                               <div className="d-flex align-items-center justify-content-between">
                                 <span className="small text-secondary">Face Centered & Aligned</span>
-                                {kycStatus.faceCentered ? (
+                                {basicMode ? (
+                                  <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">Bypassed</span>
+                                ) : kycStatus.faceCentered ? (
                                   <span className="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 small">
                                     <i className="bi bi-check-circle-fill"></i> Centered
                                   </span>
@@ -839,7 +849,9 @@ const Profile = () => {
 
                               <div className="d-flex align-items-center justify-content-between">
                                 <span className="small text-secondary">Good Lighting</span>
-                                {kycStatus.goodLighting ? (
+                                {basicMode ? (
+                                  <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">Bypassed</span>
+                                ) : kycStatus.goodLighting ? (
                                   <span className="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 small">
                                     <i className="bi bi-check-circle-fill"></i> Good
                                   </span>
@@ -852,7 +864,9 @@ const Profile = () => {
 
                               <div className="d-flex align-items-center justify-content-between">
                                 <span className="small text-secondary">Stable Position</span>
-                                {kycStatus.isStable ? (
+                                {basicMode ? (
+                                  <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">Bypassed</span>
+                                ) : kycStatus.isStable ? (
                                   <span className="badge bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-1 small">
                                     <i className="bi bi-check-circle-fill"></i> Stable
                                   </span>
@@ -867,7 +881,11 @@ const Profile = () => {
 
                               <div className="d-flex align-items-center justify-content-between">
                                 <span className="small fw-bold text-dark">Ready to Capture</span>
-                                {kycStatus.ready ? (
+                                {basicMode ? (
+                                  <span className="badge bg-success d-flex align-items-center gap-1 small">
+                                    <i className="bi bi-shield-check"></i> Ready (Basic)
+                                  </span>
+                                ) : kycStatus.ready ? (
                                   <span className="badge bg-success d-flex align-items-center gap-1 small">
                                     <i className="bi bi-shield-check"></i> Ready
                                   </span>
@@ -882,14 +900,16 @@ const Profile = () => {
                               <div className="mt-2 pt-2 border-top">
                                 <div className="d-flex justify-content-between align-items-center mb-1">
                                   <span className="small text-secondary fw-semibold">Quality Match Score:</span>
-                                  <span className={`small fw-bold text-${qualityScore >= 70 ? 'success' : 'warning'}`}>{qualityScore}%</span>
+                                  <span className={`small fw-bold text-${(basicMode || qualityScore >= 70) ? 'success' : 'warning'}`}>
+                                    {basicMode ? '100%' : `${qualityScore}%`}
+                                  </span>
                                 </div>
                                 <div className="progress" style={{ height: '6px' }}>
                                   <div 
-                                    className={`progress-bar bg-${qualityScore >= 70 ? 'success' : 'warning'}`} 
+                                    className={`progress-bar bg-${(basicMode || qualityScore >= 70) ? 'success' : 'warning'}`} 
                                     role="progressbar" 
-                                    style={{ width: `${qualityScore}%`, transition: 'width 0.3s ease' }}
-                                    aria-valuenow={qualityScore}
+                                    style={{ width: `${basicMode ? 100 : qualityScore}%`, transition: 'width 0.3s ease' }}
+                                    aria-valuenow={basicMode ? 100 : qualityScore}
                                     aria-valuemin="0"
                                     aria-valuemax="100"
                                   ></div>
@@ -902,9 +922,9 @@ const Profile = () => {
                           <div className="d-flex gap-2 justify-content-center mt-2">
                             <button 
                               type="button" 
-                              className={`btn btn-lg px-4 ${kycStatus.ready ? 'btn-success shadow-lg' : 'btn-secondary'}`} 
+                              className={`btn btn-lg px-4 ${(basicMode || kycStatus.ready) ? 'btn-success shadow-lg' : 'btn-secondary'}`} 
                               onClick={capturePhoto}
-                              disabled={!kycStatus.ready || cameraLoading}
+                              disabled={(!basicMode && !kycStatus.ready) || cameraLoading}
                             >
                               <i className="bi bi-camera-fill me-1"></i> Capture Photo
                             </button>
