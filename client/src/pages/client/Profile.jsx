@@ -82,38 +82,59 @@ const Profile = () => {
     if (detectorRef.current) return detectorRef.current;
     setLoadingEngine(true);
     setCameraError('');
+    console.log("[CameraFlow] Face detector loading started.");
+    
+    let FilesetResolver, FaceDetector;
     try {
-      // Dynamic load vision bundle via jsdelivr CDN
-      const { FaceDetector, FilesetResolver } = await import(
+      const visionBundle = await import(
         /* @vite-ignore */
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js"
       );
+      FaceDetector = visionBundle.FaceDetector;
+      FilesetResolver = visionBundle.FilesetResolver;
+    } catch (err) {
+      console.error("[CameraFlow] MediaPipe initialization failure:", err);
+      const errMsg = "MediaPipe face verification initialization failed. Please check your internet connection.";
+      setCameraError(errMsg);
+      throw new Error("MediaPipeInitFailed");
+    }
 
-      const vision = await FilesetResolver.forVisionTasks(
+    let vision;
+    try {
+      vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
       );
+    } catch (err) {
+      console.error("[CameraFlow] MediaPipe WebAssembly resolver failure:", err);
+      const errMsg = "MediaPipe webassembly resources initialization failed. Please check your internet connection.";
+      setCameraError(errMsg);
+      throw new Error("MediaPipeInitFailed");
+    }
 
-      const instance = await FaceDetector.createFromOptions(vision, {
+    let instance;
+    try {
+      instance = await FaceDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.task",
           delegate: "GPU"
         },
         runningMode: "IMAGE"
       });
-
-      detectorRef.current = instance;
-      setDetector(instance);
-      return instance;
     } catch (err) {
-      console.error("KYC Engine load failed:", err);
-      setCameraError("Failed to load face verification module. Please verify your internet connection.");
-      throw err;
-    } finally {
-      setLoadingEngine(false);
+      console.error("[CameraFlow] Face detection model loading failure:", err);
+      const errMsg = "Face detection model loading failed. Please check your network and try again.";
+      setCameraError(errMsg);
+      throw new Error("FaceModelLoadFailed");
     }
+
+    detectorRef.current = instance;
+    setDetector(instance);
+    console.log("[CameraFlow] Face detector loaded successfully.");
+    return instance;
   };
 
   const startCamera = async () => {
+    console.log("[CameraFlow] 'Verify & Take Photo' button clicked.");
     setCameraError('');
     setCameraActive(true);
     setCameraLoading(true);
@@ -126,47 +147,69 @@ const Profile = () => {
       isStable: false,
       ready: false
     });
-    setKycInstruction('Loading identity verification engine...');
+    setKycInstruction('Initializing camera...');
     setQualityScore(0);
 
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
     }
 
+    console.log("[CameraFlow] Camera initialization started.");
+
     try {
-      await loadVerificationEngine();
-
-      const constraints = {
+      // Immediately request camera permission and open front camera by default
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'user', // prioritized front camera
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        },
-        audio: false
-      };
+          facingMode: "user"
+        }
+      });
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("[CameraFlow] Camera stream started successfully.");
       setCameraStream(stream);
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().then(() => {
-            startDetectionLoop();
-          }).catch(err => {
-            console.error("Video play error:", err);
-          });
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              console.log("[CameraFlow] Live preview play started.");
+            }).catch(err => {
+              console.error("[CameraFlow] Video play error:", err);
+            });
+          }
         };
       }
-    } catch (err) {
-      console.error('Camera access error:', err);
-      setCameraError('Camera access and KYC initialization is required to capture your profile photo. Please enable camera permissions and check your internet connection.');
-      setCameraActive(false);
-    } finally {
       setCameraLoading(false);
+
+      // Now load verification engine in background
+      setKycInstruction('Loading identity verification engine...');
+      await loadVerificationEngine();
+
+      // Ensure stream is still active before running loop
+      if (videoRef.current && videoRef.current.srcObject) {
+        startDetectionLoop();
+      }
+    } catch (err) {
+      console.error('[CameraFlow] Error in camera setup flow:', err);
+      let errMsg = 'Failed to access camera.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errMsg = 'Camera permission denied. Please allow camera access in your browser settings to verify your identity.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errMsg = 'No camera found. Please connect a camera to proceed with identity verification.';
+      } else if (err.message === 'MediaPipeInitFailed') {
+        errMsg = 'MediaPipe face verification initialization failed. Please check your internet connection.';
+      } else if (err.message === 'FaceModelLoadFailed') {
+        errMsg = 'Face detection model loading failed. Please check your network and try again.';
+      } else {
+        errMsg = `Camera access or verification setup failed: ${err.message || 'Unknown error'}`;
+      }
+      setCameraError(errMsg);
+      showToast(errMsg, 'error');
+      stopCamera(true);
     }
   };
 
-  const stopCamera = () => {
+  const stopCamera = (keepError = false) => {
     activeLoopRef.current = false;
     if (detectionLoopIdRef.current) {
       cancelAnimationFrame(detectionLoopIdRef.current);
@@ -174,9 +217,12 @@ const Profile = () => {
     }
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
-      setCameraStream(null);
     }
+    setCameraStream(null);
     setCameraActive(false);
+    if (!keepError) {
+      setCameraError('');
+    }
   };
 
   const startDetectionLoop = () => {
@@ -927,6 +973,11 @@ const Profile = () => {
                             <span className="d-block text-secondary small mt-2">
                               A camera is required to capture and verify your identity photo.
                             </span>
+                            {cameraError && (
+                              <div className="alert alert-danger small py-2 mt-3 mx-auto" style={{ maxWidth: '360px' }}>
+                                <i className="bi bi-exclamation-triangle-fill me-1"></i> {cameraError}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
