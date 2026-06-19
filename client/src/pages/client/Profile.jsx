@@ -329,16 +329,9 @@ const Profile = () => {
 
     } catch (err) {
       logError('CameraFlow', 'Error in camera setup flow:', err);
-      let errMsg = 'Failed to access camera.';
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errMsg = 'Camera permission denied. Please allow camera access or upload a photo manually.';
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        errMsg = 'No camera found. Connect a camera or upload a photo manually.';
-      } else {
-        errMsg = `Camera access failed: ${err.message || 'Unknown error'}. Please upload manually.`;
-      }
+      const errMsg = "We couldn't access your camera. Please allow camera permissions or try again.";
       setCameraError(errMsg);
-      showToast(errMsg, 'error');
+      showToast(errMsg, 'error', 4500, "Camera Unavailable");
       setManualUploadMode(true);
       stopCamera(true);
     }
@@ -816,7 +809,6 @@ const Profile = () => {
       }
     } catch (err) {
       logError("API", "Failed to load profile details after retries", err);
-      showToast('Failed to load profile details from server. Restoring backup draft.', 'error');
       
       // Local storage draft backup fallback
       const draftStr = localStorage.getItem(DRAFT_KEY);
@@ -920,9 +912,8 @@ const Profile = () => {
       }
     } catch (err) {
       logError("API", "Profile save failed after retries", err);
-      const errMsg = err.response?.data?.message || err.message || 'Error saving profile.';
+      const errMsg = err.message || 'Error saving profile.';
       setErrorMsg(errMsg);
-      showToast(errMsg, 'error');
     } finally {
       setUpdating(false);
     }

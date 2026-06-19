@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const ToastContext = createContext(null);
 
@@ -26,16 +26,40 @@ const TITLES = {
   info:    'Notice',
 };
 
+let globalShowToast = null;
+
+export const showGlobalToast = (message, type = 'info', duration = 4500, title = null) => {
+  if (globalShowToast) {
+    globalShowToast(message, type, duration, title);
+  } else {
+    console.warn('[Toast] Global toast helper not initialized. Message:', message);
+  }
+};
+
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = useCallback((message, type = 'info', duration = 4500) => {
+  const showToast = useCallback((message, type = 'info', duration = 4500, title = null) => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
+
+    setToasts((prev) => {
+      const isDuplicate = prev.some((t) => t.message === message);
+      if (isDuplicate) return prev;
+
+      setTimeout(() => {
+        setToasts((current) => current.filter((t) => t.id !== id));
+      }, duration);
+
+      return [...prev, { id, message, type, title }];
+    });
   }, []);
+
+  useEffect(() => {
+    globalShowToast = showToast;
+    return () => {
+      globalShowToast = null;
+    };
+  }, [showToast]);
 
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -58,7 +82,7 @@ export const ToastProvider = ({ children }) => {
 
             {/* Text */}
             <div className="growstar-toast-body">
-              <div className="toast-title">{TITLES[toast.type] || 'Notice'}</div>
+              <div className="toast-title">{toast.title || TITLES[toast.type] || 'Notice'}</div>
               <div className="toast-message">{toast.message}</div>
             </div>
 

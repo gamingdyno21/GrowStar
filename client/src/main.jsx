@@ -11,6 +11,9 @@ const prodApiUrl = 'https://growstar-backend.onrender.com';
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? prodApiUrl : '');
 axios.defaults.timeout = 15000; // 15 seconds request timeout
 
+// Import interceptor configuration to attach to defaults
+import './utils/axiosConfig';
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
