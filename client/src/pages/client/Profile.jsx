@@ -13,6 +13,8 @@ import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 const Profile = () => {
   const { refreshUser } = useAuth();
   const { showToast } = useToast();
+  
+  // State variables
   const [profile, setProfile] = useState({
     fullName: '',
     email: '',
@@ -41,7 +43,20 @@ const Profile = () => {
   const [cameraLoading, setCameraLoading] = useState(false);
   const [basicMode, setBasicMode] = useState(false);
 
-  // KYC-Grade states
+  // Fallback triggers
+  const [browserSupported, setBrowserSupported] = useState(true);
+  const [manualUploadMode, setManualUploadMode] = useState(false);
+  const [showSkipOption, setShowSkipOption] = useState(false);
+
+  // Diagnostics panel
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnostics, setDiagnostics] = useState({
+    cameraSupport: 'Checking...',
+    mediaPipeAssets: 'Checking...',
+    apiConnectivity: 'Checking...'
+  });
+
+  // KYC-Grade face tracking states
   const [detector, setDetector] = useState(null);
   const [loadingEngine, setLoadingEngine] = useState(false);
   const [kycStatus, setKycStatus] = useState({
@@ -61,10 +76,54 @@ const Profile = () => {
   const detectionLoopIdRef = useRef(null);
   const prevFrameRef = useRef(null);
   const lastStableTimeRef = useRef(Date.now());
+  const skipTimerRef = useRef(null);
+
+  const DRAFT_KEY = 'profile_draft';
+
+  // Structured Logging Utility
+  const logInfo = (tag, message, ...args) => {
+    console.log(`[${tag}] ${message}`, ...args);
+  };
+
+  const logError = (tag, message, err) => {
+    console.error(`[${tag}] ERROR: ${message}`, err);
+  };
+
+  // API Retry logic with exponential backoff
+  const retryApi = async (fn, retries = 3, delay = 500) => {
+    try {
+      return await fn();
+    } catch (err) {
+      if (retries <= 1) throw err;
+      logInfo("API", `Request failed. Retrying in ${delay}ms... (Retries left: ${retries - 1})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryApi(fn, retries - 1, delay * 2);
+    }
+  };
+
+  // Save draft backup to localStorage
+  const saveDraft = (profileData) => {
+    try {
+      const { profilePic, ...textFields } = profileData;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        ...textFields,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      logError("Profile", "Failed to save draft to localStorage (quota exceeded)", e);
+    }
+  };
 
   useEffect(() => {
     fetchProfileData();
   }, []);
+
+  // Save fields draft backup on modification
+  useEffect(() => {
+    if (!loading) {
+      saveDraft(profile);
+    }
+  }, [profile, loading]);
 
   // Clean up camera on unmount/stream change
   useEffect(() => {
@@ -73,25 +132,90 @@ const Profile = () => {
       if (detectionLoopIdRef.current) {
         cancelAnimationFrame(detectionLoopIdRef.current);
       }
+      if (skipTimerRef.current) {
+        clearTimeout(skipTimerRef.current);
+      }
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
     };
   }, [cameraStream]);
 
+  // Pre-flight check for local WASM/models
+  const checkAsset = async (path) => {
+    try {
+      let response = await fetch(path, { method: 'HEAD' });
+      if (!response.ok) {
+        // Fallback to fetching first byte if HEAD is unsupported
+        response = await fetch(path, { method: 'GET', headers: { Range: 'bytes=0-0' } });
+      }
+      return response.ok;
+    } catch (err) {
+      logError("MediaPipe", `Pre-flight validation check failed for asset: ${path}`, err);
+      return false;
+    }
+  };
+
+  // Run system diagnostics
+  const runDiagnostics = async () => {
+    logInfo("KYC", "Running health diagnostics...");
+    const status = {
+      cameraSupport: 'Checking...',
+      mediaPipeAssets: 'Checking...',
+      apiConnectivity: 'Checking...'
+    };
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      status.cameraSupport = 'Supported';
+    } else {
+      status.cameraSupport = 'Unsupported';
+    }
+
+    try {
+      const wasmOk = await checkAsset("/wasm/vision_wasm_internal.wasm");
+      const modelOk = await checkAsset("/model/blaze_face_short_range.task");
+      status.mediaPipeAssets = (wasmOk && modelOk) ? 'Available (Local)' : 'Unavailable';
+    } catch (e) {
+      status.mediaPipeAssets = 'Check Failed';
+    }
+
+    try {
+      const res = await userService.getProfile();
+      if (res.success) {
+        status.apiConnectivity = 'Connected';
+      } else {
+        status.apiConnectivity = 'Service Offline';
+      }
+    } catch (e) {
+      status.apiConnectivity = 'Failed';
+    }
+
+    setDiagnostics(status);
+  };
+
   // Load the MediaPipe FaceDetector engine from local assets
   const loadVerificationEngine = async () => {
     if (detectorRef.current) return detectorRef.current;
     setLoadingEngine(true);
     setCameraError('');
-    console.log("[CameraFlow] Face detector loading started.");
+    logInfo("MediaPipe", "Face detector loading started.");
     
+    // Pre-flight check for local WASM assets
+    const wasmOk = await checkAsset("/wasm/vision_wasm_internal.wasm");
+    const modelOk = await checkAsset("/model/blaze_face_short_range.task");
+
+    if (!wasmOk || !modelOk) {
+      logError("MediaPipe", "Pre-flight asset validation failed. Fallback to basic mode.", new Error("AssetsNotFound"));
+      setCameraError("MediaPipe local assets are unavailable. Secure basic camera mode enabled.");
+      throw new Error("MediaPipeAssetsMissing");
+    }
+
     let vision;
     try {
       vision = await FilesetResolver.forVisionTasks("/wasm");
     } catch (err) {
-      console.error("[CameraFlow] MediaPipe WebAssembly resolver failure:", err);
-      const errMsg = "MediaPipe face verification initialization failed. Please check your internet connection.";
+      logError("MediaPipe", "WebAssembly resolver failure:", err);
+      const errMsg = "MediaPipe face verification initialization failed. Basic mode enabled.";
       setCameraError(errMsg);
       throw new Error("MediaPipeInitFailed");
     }
@@ -106,15 +230,15 @@ const Profile = () => {
         runningMode: "IMAGE"
       });
     } catch (err) {
-      console.error("[CameraFlow] Face detection model loading failure:", err);
-      const errMsg = "Face detection model loading failed. Please check your network and try again.";
+      logError("MediaPipe", "Face detection model loading failure:", err);
+      const errMsg = "Face detection model loading failed. Basic mode enabled.";
       setCameraError(errMsg);
       throw new Error("FaceModelLoadFailed");
     }
 
     detectorRef.current = instance;
     setDetector(instance);
-    console.log("[CameraFlow] Face detector loaded successfully.");
+    logInfo("MediaPipe", "Face detector loaded successfully.");
     return instance;
   };
 
@@ -123,12 +247,13 @@ const Profile = () => {
   };
 
   const startCamera = async () => {
-    console.log("[CameraFlow] 'Verify & Take Photo' button clicked.");
+    logInfo("CameraFlow", "'Verify & Take Photo' button clicked.");
     setCameraError('');
     setCameraActive(true);
     setCameraLoading(true);
     setCapturedImage(null);
     setBasicMode(false);
+    setManualUploadMode(false);
 
     setKycStatus({
       faceDetected: false,
@@ -144,17 +269,27 @@ const Profile = () => {
       cameraStream.getTracks().forEach(track => track.stop());
     }
 
-    console.log("[CameraFlow] Camera initialization started.");
+    // Check browser compatibility
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      logError("CameraFlow", "Browser does not support mediaDevices API", new Error("NoMediaDevicesSupport"));
+      setBrowserSupported(false);
+      setManualUploadMode(true);
+      setCameraError("Camera access is not supported by your browser. Please upload a photo manually.");
+      showToast("Camera not supported. Manual upload enabled.", "warning");
+      setCameraLoading(false);
+      return;
+    }
+
+    logInfo("CameraFlow", "Camera stream initialization started.");
 
     try {
-      // Immediately request camera permission and open front camera by default
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "user"
         }
       });
 
-      console.log("[CameraFlow] Camera stream started successfully.");
+      logInfo("CameraFlow", "Camera stream started successfully.");
       setCameraStream(stream);
 
       if (videoRef.current) {
@@ -162,15 +297,22 @@ const Profile = () => {
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
             videoRef.current.play().then(() => {
-              console.log("[CameraFlow] Live preview play started.");
+              logInfo("CameraFlow", "Live preview play started.");
             }).catch(err => {
-              console.error("[CameraFlow] Video play error:", err);
+              logError("CameraFlow", "Video play error:", err);
             });
           }
         };
       }
       setCameraLoading(false);
-      setKycInstruction('Camera loaded. Initializing face verification...');
+      setKycInstruction('Camera active. Initializing face verification...');
+
+      // Start 8-second skip verification timer
+      setShowSkipOption(false);
+      skipTimerRef.current = setTimeout(() => {
+        logInfo("KYC", "AI verification timeout reached. Offering skip option.");
+        setShowSkipOption(true);
+      }, 8000);
 
       // Try loading MediaPipe
       try {
@@ -181,44 +323,56 @@ const Profile = () => {
           startDetectionLoop();
         }
       } catch (error) {
-        console.error(error);
+        logError("CameraFlow", "MediaPipe failed to load, falling back to basic camera", error);
         startBasicCameraMode();
       }
 
     } catch (err) {
-      console.error('[CameraFlow] Error in camera setup flow:', err);
+      logError('CameraFlow', 'Error in camera setup flow:', err);
       let errMsg = 'Failed to access camera.';
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        errMsg = 'Camera permission denied. Please allow camera access in your browser settings to verify your identity.';
+        errMsg = 'Camera permission denied. Please allow camera access or upload a photo manually.';
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-        errMsg = 'No camera found. Please connect a camera to proceed with identity verification.';
+        errMsg = 'No camera found. Connect a camera or upload a photo manually.';
       } else {
-        errMsg = `Camera access failed: ${err.message || 'Unknown error'}`;
+        errMsg = `Camera access failed: ${err.message || 'Unknown error'}. Please upload manually.`;
       }
       setCameraError(errMsg);
       showToast(errMsg, 'error');
+      setManualUploadMode(true);
       stopCamera(true);
     }
   };
 
   const startBasicCameraMode = () => {
     setBasicMode(true);
-    setKycInstruction('Advanced verification unavailable. Basic secure camera mode enabled.');
-    showToast('Advanced verification unavailable. Basic secure camera mode enabled.', 'warning');
-    console.log("[CameraFlow] Basic camera mode enabled.");
+    setKycInstruction('Advanced verification skipped. Basic secure camera mode enabled.');
+    showToast('Advanced verification skipped. Basic secure camera mode enabled.', 'warning');
+    logInfo("CameraFlow", "Basic camera mode enabled.");
+  };
+
+  const handleSkipVerification = () => {
+    logInfo("KYC", "User manually skipped face verification checks.");
+    startBasicCameraMode();
   };
 
   const stopCamera = (keepError = false) => {
+    logInfo("CameraFlow", "Stopping camera stream and animations.");
     activeLoopRef.current = false;
     if (detectionLoopIdRef.current) {
       cancelAnimationFrame(detectionLoopIdRef.current);
       detectionLoopIdRef.current = null;
+    }
+    if (skipTimerRef.current) {
+      clearTimeout(skipTimerRef.current);
+      skipTimerRef.current = null;
     }
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
     }
     setCameraStream(null);
     setCameraActive(false);
+    setShowSkipOption(false);
     if (!keepError) {
       setCameraError('');
     }
@@ -237,7 +391,7 @@ const Profile = () => {
         try {
           processFrame(video);
         } catch (e) {
-          console.error("Error in frame processing:", e);
+          logError("KYC", "Error in frame processing loop", e);
         }
       }
       detectionLoopIdRef.current = requestAnimationFrame(run);
@@ -246,34 +400,41 @@ const Profile = () => {
     detectionLoopIdRef.current = requestAnimationFrame(run);
   };
 
-  // Black frame/Blank frame helper function
+  // Blank frame helper
   const isBlackOrBlankImage = (canvas) => {
-    const ctx = canvas.getContext('2d');
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const pixels = imgData.data;
-    
-    let sum = 0;
-    let sumSq = 0;
-    const step = 8;
-    let count = 0;
-    
-    for (let i = 0; i < pixels.length; i += step * 4) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const val = (r + g + b) / 3;
-      sum += val;
-      sumSq += val * val;
-      count++;
+    try {
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imgData.data;
+      
+      let sum = 0;
+      let sumSq = 0;
+      const step = 8;
+      let count = 0;
+      
+      for (let i = 0; i < pixels.length; i += step * 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const val = (r + g + b) / 3;
+        sum += val;
+        sumSq += val * val;
+        count++;
+      }
+      
+      const mean = sum / count;
+      const variance = (sumSq / count) - (mean * mean);
+      const stdDev = Math.sqrt(variance);
+      return mean < 15 || stdDev < 4;
+    } catch (e) {
+      logError("CameraFlow", "Error in blank image check", e);
+      return false;
     }
-    
-    const mean = sum / count;
-    const variance = (sumSq / count) - (mean * mean);
-    const stdDev = Math.sqrt(variance);
-    return mean < 15 || stdDev < 4;
   };
 
   const processFrame = (video) => {
+    if (!detectorRef.current) return;
+
     const canvas = document.createElement('canvas');
     const width = video.videoWidth || 640;
     const height = video.videoHeight || 480;
@@ -339,7 +500,8 @@ const Profile = () => {
     if (isMovingExcessively) {
       lastStableTimeRef.current = Date.now();
     }
-    const isStable = (Date.now() - lastStableTimeRef.current) >= 1200;
+    // Strict 2-second stability check
+    const isStable = (Date.now() - lastStableTimeRef.current) >= 2000;
 
     // 4. Sharpness Check (Laplacian Variance)
     const gray = new Float32Array(totalPixels);
@@ -370,8 +532,15 @@ const Profile = () => {
     const varianceLaplacian = (laplacianSquareSum / countLaplacian) - (meanLaplacian * meanLaplacian);
     const isSharp = varianceLaplacian >= 18.0;
 
-    // 5. Face Detection
-    const detectionsResult = detectorRef.current.detect(canvas);
+    // 5. Face Detection execution with fallback safety
+    let detectionsResult;
+    try {
+      detectionsResult = detectorRef.current.detect(canvas);
+    } catch (e) {
+      logError("KYC", "MediaPipe face detection runtime error", e);
+      return;
+    }
+    
     const detections = detectionsResult.detections || [];
 
     if (detections.length === 0) {
@@ -455,7 +624,7 @@ const Profile = () => {
         const noseToLeftEye = Math.abs(noseX - leX);
         const noseToRightEye = Math.abs(noseX - reX);
         const symmetryRatio = Math.min(noseToLeftEye, noseToRightEye) / Math.max(noseToLeftEye, noseToRightEye);
-        lookingStraight = symmetryRatio > 0.4; // nose is centered between eyes
+        lookingStraight = symmetryRatio > 0.4;
       }
     }
 
@@ -524,9 +693,8 @@ const Profile = () => {
       const width = video.videoWidth || 640;
       const height = video.videoHeight || 480;
 
-      // Security check: resolution
       if (width < 400 || height < 400) {
-        showToast(`Camera resolution is too low (${width}x${height}). Minimum required is 400x400.`, 'error');
+        showToast(`Camera resolution is too low (${width}x${height}). Minimum is 400x400.`, 'error');
         return;
       }
 
@@ -534,7 +702,6 @@ const Profile = () => {
       canvas.height = height;
       ctx.drawImage(video, 0, 0, width, height);
 
-      // Security check: blank/black image
       if (isBlackOrBlankImage(canvas)) {
         showToast('Cannot save a blank/empty image.', 'error');
         return;
@@ -561,7 +728,42 @@ const Profile = () => {
       }));
       setCapturedImage(null);
       setCameraActive(false);
-      showToast('Profile photo set successfully from camera preview!', 'success');
+      setManualUploadMode(false);
+      showToast('Profile photo set successfully!', 'success');
+    }
+  };
+
+  const handleManualUpload = (e) => {
+    try {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      logInfo("Upload", `Manual file upload selected: ${file.name}`);
+
+      if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        showToast("Invalid file type. Please upload a JPEG or PNG image.", "error");
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        showToast("File size exceeds 2MB limit.", "error");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCapturedImage(event.target.result);
+        logInfo("Upload", "Manual upload reading successful.");
+        showToast("Photo uploaded successfully.", "success");
+      };
+      reader.onerror = (err) => {
+        logError("Upload", "Error reading manual upload", err);
+        showToast("Failed to read image file.", "error");
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      logError("Upload", "Manual upload exception", err);
+      showToast("Error processing manual upload.", "error");
     }
   };
 
@@ -593,11 +795,12 @@ const Profile = () => {
   const fetchProfileData = async () => {
     setLoading(true);
     try {
-      const pRes = await userService.getProfile();
+      // API call wrapped in retry logic
+      const pRes = await retryApi(() => userService.getProfile(), 3, 500);
 
       if (pRes.success && pRes.data) {
         const u = pRes.data;
-        setProfile({
+        const fetchedProfile = {
           ...u,
           phoneNumber: u.phone || u.phoneNumber || '',
           profilePic: u.profilePic || '',
@@ -605,21 +808,65 @@ const Profile = () => {
           bankName: u.bankDetails?.bankName || '',
           accountNumber: u.bankDetails?.accountNumber || '',
           ifscCode: u.bankDetails?.ifscCode || ''
-        });
+        };
+        
+        // Restore local storage draft if available and newer
+        const restored = restoreDraft(fetchedProfile);
+        setProfile(restored);
       }
     } catch (err) {
-      console.error('Failed to load profile details:', err);
-      showToast('Failed to load profile details.', 'error');
+      logError("API", "Failed to load profile details after retries", err);
+      showToast('Failed to load profile details from server. Restoring backup draft.', 'error');
+      
+      // Local storage draft backup fallback
+      const draftStr = localStorage.getItem(DRAFT_KEY);
+      if (draftStr) {
+        try {
+          const draft = JSON.parse(draftStr);
+          setProfile(prev => ({ ...prev, ...draft }));
+          showToast('Loaded profile details from local backup draft.', 'warning');
+        } catch (e) {
+          logError("Profile", "Error restoring draft backup", e);
+        }
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const restoreDraft = (fetchedProfile) => {
+    try {
+      const draftStr = localStorage.getItem(DRAFT_KEY);
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        if (draft && draft.timestamp && (Date.now() - draft.timestamp) < 24 * 3600 * 1000) {
+          return {
+            ...fetchedProfile,
+            fullName: draft.fullName || fetchedProfile.fullName,
+            dob: draft.dob || fetchedProfile.dob,
+            phoneNumber: draft.phoneNumber || fetchedProfile.phoneNumber,
+            address: draft.address || fetchedProfile.address,
+            bankName: draft.bankName || fetchedProfile.bankName,
+            accountNumber: draft.accountNumber || fetchedProfile.accountNumber,
+            ifscCode: draft.ifscCode || fetchedProfile.ifscCode
+          };
+        }
+      }
+    } catch (e) {
+      logError("Profile", "Error restoring draft backup", e);
+    }
+    return fetchedProfile;
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let formatted = value;
     if (name === 'phoneNumber') formatted = formatPhone(value);
-    setProfile({ ...profile, [name]: formatted });
+    setProfile(prev => {
+      const next = { ...prev, [name]: formatted };
+      saveDraft(next);
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -641,8 +888,11 @@ const Profile = () => {
     }
 
     setUpdating(true);
+    logInfo("Profile", "Initiating save settings and bank details.");
+
     try {
-      const res = await userService.updateProfile({
+      // Save profile with retry logic
+      const res = await retryApi(() => userService.updateProfile({
         fullName: profile.fullName,
         phone: profile.phoneNumber,
         address: profile.address,
@@ -653,12 +903,15 @@ const Profile = () => {
           accountNumber: profile.accountNumber,
           ifscCode: profile.ifscCode
         }
-      });
+      }), 3, 500);
 
       if (res.success) {
         setErrorMsg('');
         setSuccessMsg('Profile updated successfully!');
         showToast('Profile updated successfully!', 'success');
+        
+        // Remove draft since save succeeded
+        localStorage.removeItem(DRAFT_KEY);
         refreshUser();
       } else {
         const failMsg = res.message || 'Profile update failed.';
@@ -666,6 +919,7 @@ const Profile = () => {
         showToast(failMsg, 'error');
       }
     } catch (err) {
+      logError("API", "Profile save failed after retries", err);
       const errMsg = err.response?.data?.message || err.message || 'Error saving profile.';
       setErrorMsg(errMsg);
       showToast(errMsg, 'error');
@@ -673,8 +927,9 @@ const Profile = () => {
       setUpdating(false);
     }
   };
+
   return (
-    <div className="bg-light min-vh-100 d-flex flex-column">
+    <div className="bg-light min-vh-100 d-flex flex-column animate-fade">
       <Navbar />
 
       <div className="container py-4 flex-grow-1">
@@ -682,7 +937,7 @@ const Profile = () => {
 
         {/* Profile Completion Progress Bar */}
         {!loading && (
-          <div className="card p-3 mb-4 border-light shadow-sm bg-white rounded-3 text-start">
+          <div className="card p-3 mb-4 border-light shadow-sm bg-white rounded-3 text-start animate-fade">
             <div className="d-flex align-items-center justify-content-between mb-2">
               <span className="fw-bold text-dark small text-uppercase" style={{ letterSpacing: '0.05em' }}>Profile Completion Status</span>
               <span className={`badge fs-7 bg-${completionProgress === 100 ? 'success' : 'primary'}`}>{completionProgress}% Complete</span>
@@ -714,9 +969,9 @@ const Profile = () => {
         {loading ? (
           <Loader />
         ) : (
-          <div className="row justify-content-center animate-fade">
+          <div className="row justify-content-center">
             {/* Account Status and Details */}
-            <div className="col-md-10 col-lg-8">
+            <div className="col-md-10 col-lg-8 animate-fade">
               <Card title="Personal & Settlement Details">
                 {successMsg && <div className="alert alert-success small py-2">{successMsg}</div>}
                 {errorMsg && <div className="alert alert-danger small py-2">{errorMsg}</div>}
@@ -729,12 +984,11 @@ const Profile = () => {
                     
                     <div className="d-flex flex-column align-items-center justify-content-center text-center">
                       
-                      {/* Photo preview or video element */}
                       {cameraActive ? (
                         <div className="w-100 d-flex flex-column align-items-center gap-3">
                           {/* Live Video Window */}
                           <div 
-                            className="position-relative border border-2 border-dark rounded-3 bg-black shadow overflow-hidden" 
+                            className="position-relative border border-2 border-dark rounded-3 bg-black shadow overflow-hidden shadow-lg" 
                             style={{ width: '100%', maxWidth: '360px', aspectRatio: '4/3' }}
                           >
                             {cameraLoading && (
@@ -752,7 +1006,6 @@ const Profile = () => {
                               className="w-100 h-100 object-fit-cover"
                             />
                             
-                            {/* Hidden processing canvas */}
                             <canvas ref={canvasRef} style={{ display: 'none' }} />
 
                             {/* Circular Face Guide Overlay */}
@@ -761,22 +1014,19 @@ const Profile = () => {
                                 <defs>
                                   <mask id="face-mask">
                                     <rect width="100%" height="100%" fill="white" />
-                                    {/* 110px radius cutout at the center */}
                                     <circle cx="50%" cy="50%" r="110" fill="black" />
                                   </mask>
                                 </defs>
-                                {/* Semi-transparent dark mask overlay */}
                                 <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.65)" mask="url(#face-mask)" />
-                                {/* Glow circle border */}
                                 <circle
                                   cx="50%"
                                   cy="50%"
                                   r="110"
                                   fill="none"
-                                stroke={(basicMode || kycStatus.ready) ? '#198754' : '#ffc107'}
-                                strokeWidth="3"
-                                strokeDasharray={(basicMode || kycStatus.ready) ? 'none' : '6, 6'}
-                                style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
+                                  stroke={(basicMode || kycStatus.ready) ? '#198754' : '#ffc107'}
+                                  strokeWidth="3"
+                                  strokeDasharray={(basicMode || kycStatus.ready) ? 'none' : '6, 6'}
+                                  style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
                                 />
                               </svg>
                             )}
@@ -787,7 +1037,7 @@ const Profile = () => {
                                 className="position-absolute bottom-0 start-0 w-100 text-center p-2 text-white fw-bold small" 
                                 style={{ 
                                   zIndex: 3, 
-                                  backgroundColor: (basicMode || kycStatus.ready) ? 'rgba(25, 135, 84, 0.88)' : 'rgba(33, 37, 41, 0.85)',
+                                  backgroundColor: (basicMode || kycStatus.ready) ? 'rgba(25, 135, 84, 0.9)' : 'rgba(33, 37, 41, 0.85)',
                                   transition: 'background-color 0.3s ease'
                                 }}
                               >
@@ -802,17 +1052,31 @@ const Profile = () => {
                             )}
                           </div>
 
+                          {/* Skip Option Trigger on Timeout */}
+                          {showSkipOption && !basicMode && (
+                            <div className="alert alert-info py-2 px-3 small w-100 text-center mb-1 animate-fade" style={{ maxWidth: '360px' }}>
+                              Having trouble with face verification?{' '}
+                              <button 
+                                type="button" 
+                                className="btn btn-link p-0 fw-bold text-decoration-none align-baseline text-primary small"
+                                onClick={handleSkipVerification}
+                              >
+                                Skip AI Verification
+                              </button>
+                            </div>
+                          )}
+
                           {/* Real-time Checklist & Badges */}
-                          <div className="card p-3 bg-light border-0 w-100 mt-2" style={{ maxWidth: '360px' }}>
+                          <div className="card p-3 bg-light border-0 w-100 mt-1 shadow-sm" style={{ maxWidth: '360px' }}>
                             <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
                               <h6 className="fw-bold text-dark mb-0 small text-uppercase" style={{ letterSpacing: '0.05em' }}>Verification Checklist</h6>
                               <span className="badge bg-secondary-subtle text-dark-emphasis small">Real-time</span>
                             </div>
                             
                             {basicMode && (
-                              <div className="alert alert-warning small py-2 mb-3 text-start">
+                              <div className="alert alert-warning small py-2 mb-3 text-start animate-fade">
                                 <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                                Advanced verification unavailable. Basic secure camera mode enabled.
+                                Advanced verification bypassed. Secure basic camera mode active.
                               </div>
                             )}
                             
@@ -882,11 +1146,11 @@ const Profile = () => {
                               <div className="d-flex align-items-center justify-content-between">
                                 <span className="small fw-bold text-dark">Ready to Capture</span>
                                 {basicMode ? (
-                                  <span className="badge bg-success d-flex align-items-center gap-1 small">
+                                  <span className="badge bg-success d-flex align-items-center gap-1 small animate-pulse">
                                     <i className="bi bi-shield-check"></i> Ready (Basic)
                                   </span>
                                 ) : kycStatus.ready ? (
-                                  <span className="badge bg-success d-flex align-items-center gap-1 small">
+                                  <span className="badge bg-success d-flex align-items-center gap-1 small animate-pulse">
                                     <i className="bi bi-shield-check"></i> Ready
                                   </span>
                                 ) : (
@@ -931,14 +1195,49 @@ const Profile = () => {
                             <button 
                               type="button" 
                               className="btn btn-outline-secondary px-3" 
-                              onClick={stopCamera}
+                              onClick={() => stopCamera()}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : manualUploadMode ? (
+                        <div className="w-100 text-center animate-fade" style={{ maxWidth: '360px' }}>
+                          <div className="border border-dashed p-4 rounded-3 bg-light mb-3 border-secondary-subtle">
+                            <i className="bi bi-cloud-arrow-up-fill text-primary fs-1 mb-2"></i>
+                            <span className="d-block fw-semibold text-dark small mb-2">Manual Photo Upload Fallback</span>
+                            <input 
+                              type="file" 
+                              className="form-control" 
+                              accept="image/jpeg,image/png" 
+                              onChange={handleManualUpload} 
+                            />
+                            <span className="d-block text-secondary small mt-2" style={{ fontSize: '0.75rem' }}>
+                              Face verification checks bypassed. Upload JPEG or PNG, max 2MB.
+                            </span>
+                          </div>
+
+                          <div className="d-flex gap-2 justify-content-center">
+                            {browserSupported && (
+                              <button 
+                                type="button" 
+                                className="btn btn-outline-primary px-3 btn-sm" 
+                                onClick={() => { setManualUploadMode(false); startCamera(); }}
+                              >
+                                <i className="bi bi-camera-fill me-1"></i> Back to Camera
+                              </button>
+                            )}
+                            <button 
+                              type="button" 
+                              className="btn btn-outline-secondary px-3 btn-sm" 
+                              onClick={() => setManualUploadMode(false)}
                             >
                               Cancel
                             </button>
                           </div>
                         </div>
                       ) : capturedImage ? (
-                        <div className="text-center w-100" style={{ maxWidth: '360px' }}>
+                        <div className="text-center w-100 animate-fade" style={{ maxWidth: '360px' }}>
                           <img
                             src={capturedImage}
                             alt="Captured preview"
@@ -946,7 +1245,7 @@ const Profile = () => {
                             style={{ aspectRatio: '4/3' }}
                           />
                           <div className="alert alert-success py-2 small mb-3">
-                            <i className="bi bi-shield-check-fill me-1"></i> Image passed all KYC validation checks!
+                            <i className="bi bi-shield-check-fill me-1"></i> Image ready for KYC assignment!
                           </div>
                           <div className="d-flex gap-2 justify-content-center">
                             <button 
@@ -959,14 +1258,21 @@ const Profile = () => {
                             <button 
                               type="button" 
                               className="btn btn-outline-danger px-3" 
-                              onClick={() => { setCapturedImage(null); startCamera(); }}
+                              onClick={() => { 
+                                setCapturedImage(null); 
+                                if (browserSupported && !manualUploadMode) {
+                                  startCamera(); 
+                                } else {
+                                  setManualUploadMode(true);
+                                }
+                              }}
                             >
                               <i className="bi bi-arrow-counterclockwise me-1"></i> Retake
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center">
+                        <div className="text-center animate-fade">
                           <div className="mb-3 position-relative d-inline-block">
                             {profile.profilePic ? (
                               <img
@@ -983,18 +1289,29 @@ const Profile = () => {
                           </div>
                           
                           <div>
-                            <button 
-                              type="button" 
-                              className="btn btn-primary px-4" 
-                              onClick={startCamera}
-                            >
-                              <i className="bi bi-camera-fill me-1"></i> Verify & Take Photo
-                            </button>
+                            <div className="d-flex gap-2 justify-content-center">
+                              <button 
+                                type="button" 
+                                className="btn btn-primary px-4" 
+                                onClick={startCamera}
+                              >
+                                <i className="bi bi-camera-fill me-1"></i> Verify & Take Photo
+                              </button>
+                              
+                              <button 
+                                type="button" 
+                                className="btn btn-outline-secondary px-3" 
+                                onClick={() => setManualUploadMode(true)}
+                              >
+                                <i className="bi bi-cloud-arrow-up-fill me-1"></i> Upload manually
+                              </button>
+                            </div>
+                            
                             <span className="d-block text-secondary small mt-2">
-                              A camera is required to capture and verify your identity photo.
+                              A verification photo is required to complete KYC settings.
                             </span>
                             {cameraError && (
-                              <div className="alert alert-danger small py-2 mt-3 mx-auto" style={{ maxWidth: '360px' }}>
+                              <div className="alert alert-danger small py-2 mt-3 mx-auto animate-fade" style={{ maxWidth: '360px' }}>
                                 <i className="bi bi-exclamation-triangle-fill me-1"></i> {cameraError}
                               </div>
                             )}
@@ -1002,6 +1319,47 @@ const Profile = () => {
                         </div>
                       )}
                       
+                      {/* Diagnostics Health Check Panel */}
+                      <div className="mt-3 border-top pt-3 w-100 text-start">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-link text-decoration-none text-secondary p-0 d-flex align-items-center gap-1 small shadow-none"
+                          onClick={() => {
+                            const next = !showDiagnostics;
+                            setShowDiagnostics(next);
+                            if (next) runDiagnostics();
+                          }}
+                        >
+                          <i className={`bi bi-chevron-${showDiagnostics ? 'down' : 'right'}`}></i>
+                          KYC Diagnostics Health
+                        </button>
+                        
+                        {showDiagnostics && (
+                          <div className="card p-3 mt-2 bg-light border-0 small text-start animate-fade">
+                            <div className="row g-2">
+                              <div className="col-sm-4 text-center text-sm-start">
+                                <span className="text-secondary d-block fw-semibold" style={{ fontSize: '0.72rem' }}>CAMERA DEVICE</span>
+                                <span className={`fw-bold text-${diagnostics.cameraSupport === 'Supported' ? 'success' : 'danger'}`}>
+                                  {diagnostics.cameraSupport}
+                                </span>
+                              </div>
+                              <div className="col-sm-4 text-center text-sm-start">
+                                <span className="text-secondary d-block fw-semibold" style={{ fontSize: '0.72rem' }}>LOCAL WASM ENGINE</span>
+                                <span className={`fw-bold text-${diagnostics.mediaPipeAssets.startsWith('Available') ? 'success' : 'danger'}`}>
+                                  {diagnostics.mediaPipeAssets}
+                                </span>
+                              </div>
+                              <div className="col-sm-4 text-center text-sm-start">
+                                <span className="text-secondary d-block fw-semibold" style={{ fontSize: '0.72rem' }}>SERVER API</span>
+                                <span className={`fw-bold text-${diagnostics.apiConnectivity === 'Connected' ? 'success' : 'danger'}`}>
+                                  {diagnostics.apiConnectivity}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   </div>
 
@@ -1068,7 +1426,7 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  <hr className="my-4 text-secondary" />
+                  <hr className="my-4 text-secondary animate-fade" />
                   <h6 className="fw-bold text-primary mb-3 text-uppercase">Settlement Bank Details</h6>
 
                   <div className="row">
@@ -1105,7 +1463,11 @@ const Profile = () => {
                         className="form-control"
                         placeholder="e.g. SBIN0001234"
                         value={profile.ifscCode}
-                        onChange={(e) => setProfile({ ...profile, ifscCode: e.target.value.toUpperCase() })}
+                        onChange={(e) => setProfile(prev => {
+                          const next = { ...prev, ifscCode: e.target.value.toUpperCase() };
+                          saveDraft(next);
+                          return next;
+                        })}
                       />
                     </div>
                   </div>
